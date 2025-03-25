@@ -1,0 +1,4 @@
+mkdir -p easy-tax/frontend
+cd easy-tax/frontend
+npx create-react-app .
+npm install axios react-router-dom jwt-decode @mui/material @mui/icons-material @emotion/react @emotion/styled formik yup 

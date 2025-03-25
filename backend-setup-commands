@@ -1,0 +1,4 @@
+mkdir -p easy-tax/backend
+cd easy-tax/backend
+npm init -y
+npm install express mongoose dotenv cors bcryptjs jsonwebtoken express-validator helmet morgan 
