@@ -136,12 +136,13 @@ const BudgetForm = ({ initialValues, onSubmit, isSubmitting, buttonText, categor
               label="Start Date"
               value={formik.values.startDate}
               onChange={(newValue) => formik.setFieldValue('startDate', newValue)}
-              slotProps={{
-                textField: { 
-                  fullWidth: true, 
-                  variant: 'outlined'
-                }
-              }}
+              renderInput={(params) => (
+                <TextField 
+                  {...params} 
+                  fullWidth 
+                  variant="outlined"
+                />
+              )}
             />
             <FormHelperText>
               For monthly/yearly budgets, this sets the reference period
