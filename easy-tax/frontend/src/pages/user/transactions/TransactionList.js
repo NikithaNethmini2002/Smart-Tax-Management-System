@@ -52,12 +52,10 @@ const TransactionList = () => {
   const [filters, setFilters] = useState({
     type: '',
     category: '',
-    minAmount: '',
     maxAmount: '',
     fromDate: '',
     toDate: '',
-    tags: '',
-    paymentMethod: ''
+    tags: ''
   });
 
   // Categories
@@ -134,12 +132,10 @@ const TransactionList = () => {
     setFilters({
       type: '',
       category: '',
-      minAmount: '',
       maxAmount: '',
       fromDate: '',
       toDate: '',
-      tags: '',
-      paymentMethod: ''
+      tags: ''
     });
     fetchTransactions();
   };
@@ -328,20 +324,6 @@ const TransactionList = () => {
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
-                label="Min Amount"
-                name="minAmount"
-                type="number"
-                value={filters.minAmount}
-                onChange={handleFilterChange}
-                margin="normal"
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
                 label="Max Amount"
                 name="maxAmount"
                 type="number"
@@ -387,24 +369,6 @@ const TransactionList = () => {
                 margin="normal"
                 placeholder="e.g., #vacation, #business"
               />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                select
-                fullWidth
-                label="Payment Method"
-                name="paymentMethod"
-                value={filters.paymentMethod}
-                onChange={handleFilterChange}
-                margin="normal"
-              >
-                <MenuItem value="">All</MenuItem>
-                {paymentMethods.map(method => (
-                  <MenuItem key={method} value={method}>
-                    {method.charAt(0).toUpperCase() + method.slice(1)}
-                  </MenuItem>
-                ))}
-              </TextField>
             </Grid>
             <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
               <Button 
