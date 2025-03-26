@@ -42,9 +42,25 @@ const BudgetService = {
   getBudgetStatus: async (id) => {
     try {
       const response = await axios.get(`${API_URL}${id}/status`, { headers: authHeader() });
-      return response.data;
+      console.log('Raw budget status response:', response.data);
+      
+      // Make sure we return data in the expected format
+      if (response.data) {
+        return {
+          spent: response.data.spent || 0,
+          remaining: response.data.remaining !== undefined ? 
+            response.data.remaining : 
+            (response.data.budgetAmount - response.data.spent || 0),
+          percentage: response.data.percentage !== undefined ? 
+            response.data.percentage : 
+            ((response.data.spent / response.data.budgetAmount) * 100 || 0)
+        };
+      }
+      return { spent: 0, remaining: 0, percentage: 0 };
     } catch (error) {
-      throw error.response?.data || { message: 'Error fetching budget status' };
+      console.error('Error in getBudgetStatus:', error.response?.data || error.message);
+      // Return default values instead of throwing
+      return { spent: 0, remaining: 0, percentage: 0 };
     }
   },
 
