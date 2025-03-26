@@ -25,7 +25,8 @@ import {
   AccountBalance as BudgetIcon,
   BarChart as ChartIcon,
   PersonOutline as ProfileIcon,
-  Lock as PasswordIcon
+  Lock as PasswordIcon,
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
 
@@ -73,6 +74,13 @@ const UserLayout = ({ children, title }) => {
             <BudgetIcon />
           </ListItemIcon>
           <ListItemText primary="Budgets" />
+        </ListItem>
+        
+        <ListItem button component={RouterLink} to="/reports">
+          <ListItemIcon>
+            <AssessmentIcon />
+          </ListItemIcon>
+          <ListItemText primary="Financial Reports" />
         </ListItem>
         
         <ListItem button component={RouterLink} to="/profile">

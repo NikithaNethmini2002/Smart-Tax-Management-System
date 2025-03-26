@@ -26,6 +26,7 @@ import BudgetCreate from './pages/user/budgets/BudgetCreate';
 import BudgetEdit from './pages/user/budgets/BudgetEdit';
 import BudgetDetails from './pages/user/budgets/BudgetDetails';
 import BudgetRecommendations from './pages/user/budgets/BudgetRecommendations';
+import FinancialReports from './pages/user/reports/FinancialReports';
 
 // Admin Components
 import AdminDashboard from './pages/admin/Dashboard';
@@ -169,6 +170,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <BudgetRecommendations />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/reports" 
+              element={
+                <PrivateRoute>
+                  <FinancialReports />
                 </PrivateRoute>
               } 
             />

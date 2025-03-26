@@ -60,4 +60,13 @@ router.put(
 // @access  Private
 router.delete('/:id', transactionController.deleteTransaction);
 
+// Add new routes below the existing ones but before the module.exports
+router.get('/reports/spending-trends', transactionController.getSpendingTrends);
+router.get('/reports/income-vs-expense', transactionController.getIncomeVsExpense);
+router.get('/reports/category-breakdown', transactionController.getCategoryBreakdown);
+router.get('/reports/summary', transactionController.getFinancialSummary);
+
+// Development-only route for creating test transactions
+router.get('/create-test', transactionController.createTestTransaction);
+
 module.exports = router; 
