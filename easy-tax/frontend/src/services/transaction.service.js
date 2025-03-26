@@ -1,77 +1,104 @@
 import axios from 'axios';
 import { API_URL } from '../config';
 
+// Create axios instance with baseURL
+const API = axios.create({
+  baseURL: API_URL
+});
+
+// Add authorization header to requests
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle common API errors
+API.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Redirect to login or refresh token
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Transaction API service
 const TransactionService = {
   // Get all transactions
   getAllTransactions: async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/transactions`);
-      return response.data;
+      return await API.get('/api/transactions');
     } catch (error) {
-      throw error.response?.data || { message: 'Error fetching transactions' };
+      console.error('Error fetching transactions:', error);
+      throw error;
     }
   },
 
   // Get transaction by ID
   getTransactionById: async (id) => {
     try {
-      const response = await axios.get(`${API_URL}/api/transactions/${id}`);
-      return response.data;
+      return await API.get(`/api/transactions/${id}`);
     } catch (error) {
-      throw error.response?.data || { message: 'Error fetching transaction' };
+      console.error('Error fetching transaction:', error);
+      throw error;
     }
   },
 
   // Filter transactions
   filterTransactions: async (filters) => {
     try {
-      const queryString = new URLSearchParams(filters).toString();
-      const response = await axios.get(`${API_URL}/api/transactions/filter?${queryString}`);
-      return response.data;
+      return await API.get('/api/transactions/filter', { params: filters });
     } catch (error) {
-      throw error.response?.data || { message: 'Error filtering transactions' };
+      console.error('Error filtering transactions:', error);
+      throw error;
     }
   },
 
   // Get transaction summary
   getTransactionSummary: async (period) => {
     try {
-      const queryString = period ? `period=${period}` : '';
-      const response = await axios.get(`${API_URL}/api/transactions/summary?${queryString}`);
-      return response.data;
+      return await API.get('/api/transactions/summary', { 
+        params: period ? { period } : {} 
+      });
     } catch (error) {
-      throw error.response?.data || { message: 'Error fetching transaction summary' };
+      console.error('Error fetching transaction summary:', error);
+      throw error;
     }
   },
 
   // Create a new transaction
   createTransaction: async (transactionData) => {
     try {
-      const response = await axios.post(`${API_URL}/api/transactions`, transactionData);
-      return response.data;
+      return await API.post('/api/transactions', transactionData);
     } catch (error) {
-      throw error.response?.data || { message: 'Error creating transaction' };
+      console.error('Error creating transaction:', error);
+      throw error;
     }
   },
 
   // Update a transaction
   updateTransaction: async (id, transactionData) => {
     try {
-      const response = await axios.put(`${API_URL}/api/transactions/${id}`, transactionData);
-      return response.data;
+      return await API.put(`/api/transactions/${id}`, transactionData);
     } catch (error) {
-      throw error.response?.data || { message: 'Error updating transaction' };
+      console.error('Error updating transaction:', error);
+      throw error;
     }
   },
 
   // Delete a transaction
   deleteTransaction: async (id) => {
     try {
-      const response = await axios.delete(`${API_URL}/api/transactions/${id}`);
-      return response.data;
+      return await API.delete(`/api/transactions/${id}`);
     } catch (error) {
-      throw error.response?.data || { message: 'Error deleting transaction' };
+      console.error('Error deleting transaction:', error);
+      throw error;
     }
   }
 };
