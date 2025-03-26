@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
 const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 
 // Get all transactions for a user
 exports.getAllTransactions = async (req, res) => {
@@ -240,90 +241,136 @@ exports.filterTransactions = async (req, res) => {
 // Get transaction summary (for dashboard)
 exports.getTransactionSummary = async (req, res) => {
   try {
-    const { period } = req.query; // 'daily', 'weekly', 'monthly', 'yearly'
+    const { period } = req.query || 'monthly';
+    const userId = req.user._id;
     
-    // Default to monthly if no period specified
-    const timePeriod = period || 'monthly';
+    // Get date range based on the period
+    const { startDate, endDate } = getDateRangeForPeriod(period);
     
-    // Set date range based on period
-    const now = new Date();
-    let startDate;
+    // Ensure userId is properly converted to ObjectId
+    const userObjectId = new ObjectId(userId);
     
-    if (timePeriod === 'daily') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    } else if (timePeriod === 'weekly') {
-      const dayOfWeek = now.getDay();
-      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Sunday
-      startDate = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0);
-    } else if (timePeriod === 'monthly') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-    } else if (timePeriod === 'yearly') {
-      startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-    } else {
-      return res.status(400).json({ message: 'Invalid period' });
-    }
-    
-    // Get income and expense totals for the period
-    const incomeTotal = await Transaction.aggregate([
-      { 
-        $match: { 
-          user: mongoose.Types.ObjectId(req.user._id),
+    // Get income sum
+    const incomeResult = await Transaction.aggregate([
+      {
+        $match: {
+          user: userObjectId,
           type: 'income',
-          date: { $gte: startDate, $lte: now }
-        } 
+          date: { $gte: startDate, $lte: endDate }
+        }
       },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
     ]);
     
-    const expenseTotal = await Transaction.aggregate([
-      { 
-        $match: { 
-          user: mongoose.Types.ObjectId(req.user._id),
+    // Get expense sum
+    const expenseResult = await Transaction.aggregate([
+      {
+        $match: {
+          user: userObjectId,
           type: 'expense',
-          date: { $gte: startDate, $lte: now }
-        } 
+          date: { $gte: startDate, $lte: endDate }
+        }
       },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
     ]);
     
-    // Get spending by category
+    // Get expense breakdown by category
     const categoryBreakdown = await Transaction.aggregate([
-      { 
-        $match: { 
-          user: mongoose.Types.ObjectId(req.user._id),
+      {
+        $match: {
+          user: userObjectId,
           type: 'expense',
-          date: { $gte: startDate, $lte: now }
-        } 
+          date: { $gte: startDate, $lte: endDate }
+        }
       },
-      { $group: { _id: '$category', total: { $sum: '$amount' } } },
-      { $sort: { total: -1 } }
+      {
+        $group: {
+          _id: '$category',
+          amount: { $sum: '$amount' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          amount: 1
+        }
+      }
     ]);
     
-    // Format category breakdown as an object
-    const categories = {};
-    categoryBreakdown.forEach(cat => {
-      categories[cat._id || 'Uncategorized'] = cat.total;
+    // Format the category breakdown into an object
+    const categoryBreakdownObj = {};
+    categoryBreakdown.forEach(item => {
+      categoryBreakdownObj[item.category] = item.amount;
     });
     
-    // Calculate totals and balance
-    const totalIncome = incomeTotal.length > 0 ? incomeTotal[0].total : 0;
-    const totalExpense = expenseTotal.length > 0 ? expenseTotal[0].total : 0;
-    const balance = totalIncome - totalExpense;
+    // Prepare the response
+    const summary = {
+      period,
+      income: incomeResult.length > 0 ? incomeResult[0].total : 0,
+      expense: expenseResult.length > 0 ? expenseResult[0].total : 0,
+      categoryBreakdown: categoryBreakdownObj
+    };
     
-    res.json({
-      period: timePeriod,
-      startDate,
-      endDate: now,
-      totalIncome,
-      totalExpense,
-      balance,
-      categoryBreakdown: categories
-    });
+    res.json(summary);
   } catch (error) {
     console.error('Error getting transaction summary:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Helper function to get date range based on period
+function getDateRangeForPeriod(period) {
+  const now = new Date();
+  let startDate, endDate;
+  
+  switch (period) {
+    case 'weekly':
+      // Start of the current week (Sunday)
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - now.getDay());
+      startDate.setHours(0, 0, 0, 0);
+      
+      // End of the current week (Saturday)
+      endDate = new Date(now);
+      endDate.setDate(now.getDate() + (6 - now.getDay()));
+      endDate.setHours(23, 59, 59, 999);
+      break;
+      
+    case 'monthly':
+      // Start of the current month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // End of the current month
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      break;
+      
+    case 'yearly':
+      // Start of the current year
+      startDate = new Date(now.getFullYear(), 0, 1);
+      
+      // End of the current year
+      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      break;
+      
+    default:
+      // Default to monthly
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+  
+  return { startDate, endDate };
+}
 
 // Helper function to check budget thresholds and record notifications
 async function checkBudgetThresholds(userId, category) {

@@ -1,184 +1,197 @@
 import React from 'react';
-import { Formik, Form, Field } from 'formik';
+import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import {
+import { 
+  TextField, 
+  Button, 
+  Grid, 
+  MenuItem, 
   Box,
-  TextField,
-  Button,
-  Grid,
-  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
   FormHelperText,
-  InputAdornment,
   Slider,
   Typography
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
-
-// Validation schema
-const BudgetSchema = Yup.object().shape({
-  name: Yup.string().required('Name is required'),
-  amount: Yup.number().positive('Amount must be positive').required('Amount is required'),
-  period: Yup.string().oneOf(['weekly', 'monthly', 'yearly'], 'Invalid period').required('Period is required'),
-  category: Yup.string(),
-  startDate: Yup.date().required('Start date is required'),
-  notificationThreshold: Yup.number().min(1, 'Must be at least 1%').max(100, 'Cannot exceed 100%').required('Notification threshold is required')
-});
 
 const BudgetForm = ({ initialValues, onSubmit, isSubmitting, buttonText, categories }) => {
-  // Budget periods
-  const periods = [
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'monthly', label: 'Monthly' },
-    { value: 'yearly', label: 'Yearly' }
-  ];
+  const validationSchema = Yup.object({
+    name: Yup.string().required('Budget name is required'),
+    amount: Yup.number()
+      .required('Amount is required')
+      .positive('Amount must be positive')
+      .typeError('Amount must be a number'),
+    period: Yup.string()
+      .oneOf(['weekly', 'monthly', 'yearly'], 'Invalid period')
+      .required('Period is required'),
+    notificationThreshold: Yup.number()
+      .min(1, 'Threshold must be at least 1%')
+      .max(100, 'Threshold cannot exceed 100%')
+      .required('Notification threshold is required')
+      .typeError('Threshold must be a number')
+  });
+
+  const formik = useFormik({
+    initialValues: initialValues || {
+      name: '',
+      amount: '',
+      period: 'monthly',
+      category: '',
+      startDate: new Date(),
+      notificationThreshold: 80
+    },
+    validationSchema,
+    onSubmit
+  });
 
   return (
-    <Formik
-      initialValues={initialValues}
-      validationSchema={BudgetSchema}
-      onSubmit={onSubmit}
-    >
-      {({ values, errors, touched, handleChange, setFieldValue }) => (
-        <Form>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Field
-                as={TextField}
-                fullWidth
-                name="name"
-                label="Budget Name"
-                value={values.name}
-                onChange={handleChange}
-                error={touched.name && Boolean(errors.name)}
-                helperText={touched.name && errors.name}
-                margin="normal"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Field
-                as={TextField}
-                fullWidth
-                name="amount"
-                label="Budget Amount"
-                type="number"
-                value={values.amount}
-                onChange={handleChange}
-                error={touched.amount && Boolean(errors.amount)}
-                helperText={touched.amount && errors.amount}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-                margin="normal"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Field
-                as={TextField}
-                select
-                fullWidth
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <form onSubmit={formik.handleSubmit}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              id="name"
+              name="name"
+              label="Budget Name"
+              value={formik.values.name}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.name && Boolean(formik.errors.name)}
+              helperText={formik.touched.name && formik.errors.name}
+              required
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              id="amount"
+              name="amount"
+              label="Budget Amount ($)"
+              type="number"
+              value={formik.values.amount}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.amount && Boolean(formik.errors.amount)}
+              helperText={formik.touched.amount && formik.errors.amount}
+              InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+              required
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth error={formik.touched.period && Boolean(formik.errors.period)}>
+              <InputLabel id="period-label">Period</InputLabel>
+              <Select
+                labelId="period-label"
+                id="period"
                 name="period"
-                label="Budget Period"
-                value={values.period}
-                onChange={handleChange}
-                error={touched.period && Boolean(errors.period)}
-                helperText={touched.period && errors.period}
-                margin="normal"
+                value={formik.values.period}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                label="Period"
+                required
               >
-                {periods.map((period) => (
-                  <MenuItem key={period.value} value={period.value}>
-                    {period.label}
-                  </MenuItem>
-                ))}
-              </Field>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Start Date"
-                  value={values.startDate ? new Date(values.startDate) : null}
-                  onChange={(newValue) => {
-                    setFieldValue('startDate', newValue);
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      fullWidth
-                      margin="normal"
-                      error={touched.startDate && Boolean(errors.startDate)}
-                      helperText={touched.startDate && errors.startDate}
-                    />
-                  )}
-                />
-              </LocalizationProvider>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Field
-                as={TextField}
-                select
-                fullWidth
+                <MenuItem value="weekly">Weekly</MenuItem>
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="yearly">Yearly</MenuItem>
+              </Select>
+              {formik.touched.period && formik.errors.period && (
+                <FormHelperText>{formik.errors.period}</FormHelperText>
+              )}
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel id="category-label">Category (Optional)</InputLabel>
+              <Select
+                labelId="category-label"
+                id="category"
                 name="category"
+                value={formik.values.category}
+                onChange={formik.handleChange}
                 label="Category (Optional)"
-                value={values.category}
-                onChange={handleChange}
-                error={touched.category && Boolean(errors.category)}
-                helperText={(touched.category && errors.category) || "Leave blank for overall budget"}
-                margin="normal"
               >
-                <MenuItem value="">No Specific Category</MenuItem>
+                <MenuItem value="">All Categories</MenuItem>
                 {categories.map((category) => (
                   <MenuItem key={category} value={category}>
                     {category}
                   </MenuItem>
                 ))}
-              </Field>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography gutterBottom>
-                Notification Threshold: {values.notificationThreshold}%
-              </Typography>
-              <Slider
-                name="notificationThreshold"
-                value={values.notificationThreshold}
-                onChange={(e, newValue) => {
-                  setFieldValue('notificationThreshold', newValue);
-                }}
-                valueLabelDisplay="auto"
-                step={5}
-                marks
-                min={10}
-                max={100}
-              />
-              <Typography variant="caption" color="textSecondary">
-                You'll receive notifications when your spending reaches this percentage of the budget
-              </Typography>
-              {touched.notificationThreshold && errors.notificationThreshold && (
-                <FormHelperText error>{errors.notificationThreshold}</FormHelperText>
-              )}
-            </Grid>
-
-            <Grid item xs={12}>
-              <Box sx={{ mt: 2 }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  disabled={isSubmitting}
-                >
-                  {buttonText || 'Submit'}
-                </Button>
-              </Box>
-            </Grid>
+              </Select>
+              <FormHelperText>
+                Leave empty to set a budget for all spending
+              </FormHelperText>
+            </FormControl>
           </Grid>
-        </Form>
-      )}
-    </Formik>
+          
+          <Grid item xs={12} sm={6}>
+            <DatePicker
+              label="Start Date"
+              value={formik.values.startDate}
+              onChange={(newValue) => formik.setFieldValue('startDate', newValue)}
+              slotProps={{
+                textField: { 
+                  fullWidth: true, 
+                  variant: 'outlined'
+                }
+              }}
+            />
+            <FormHelperText>
+              For monthly/yearly budgets, this sets the reference period
+            </FormHelperText>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <Typography gutterBottom>
+              Notification Threshold ({formik.values.notificationThreshold}%)
+            </Typography>
+            <Slider
+              name="notificationThreshold"
+              value={formik.values.notificationThreshold}
+              onChange={(e, value) => formik.setFieldValue('notificationThreshold', value)}
+              aria-labelledby="notification-threshold-slider"
+              valueLabelDisplay="auto"
+              step={5}
+              marks
+              min={10}
+              max={100}
+            />
+            <FormHelperText>
+              {formik.errors.notificationThreshold || 'Alert when spending reaches this percentage of budget'}
+            </FormHelperText>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
+              <Button
+                type="button"
+                variant="outlined"
+                color="primary"
+                onClick={() => window.history.back()}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={isSubmitting || !formik.isValid}
+              >
+                {buttonText || 'Save Budget'}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </form>
+    </LocalizationProvider>
   );
 };
 

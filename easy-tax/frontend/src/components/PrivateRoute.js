@@ -7,12 +7,8 @@ import Box from '@mui/material/Box';
 const PrivateRoute = ({ children, isAdmin = false }) => {
   const { auth } = useContext(AuthContext);
   
-  console.log('PrivateRoute auth state:', {
-    isAuthenticated: auth.isAuthenticated, 
-    isAdmin: auth.isAdmin,
-    requestingAdminRoute: isAdmin,
-    loading: auth.loading
-  });
+  console.log('PrivateRoute auth status:', auth.isAuthenticated);
+  console.log('PrivateRoute auth token:', auth.token ? 'Token exists' : 'No token');
 
   if (auth.loading) {
     return (

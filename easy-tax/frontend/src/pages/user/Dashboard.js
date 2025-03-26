@@ -31,13 +31,16 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import UserLayout from '../../components/UserLayout';
 import { AuthContext } from '../../context/AuthContext';
 import TransactionService from '../../services/transaction.service';
-import BudgetService from '../../services/budget.service';
 
 const Dashboard = () => {
   const { auth, fetchUserProfile } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
-  const [summaryData, setSummaryData] = useState(null);
-  const [budgetData, setBudgetData] = useState([]);
+  const [summaryData, setSummaryData] = useState({
+    income: 0,
+    expense: 0,
+    netBalance: 0,
+    categoryBreakdown: {}
+  });
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   
@@ -54,57 +57,66 @@ const Dashboard = () => {
         // Fetch transaction summary
         const summary = await TransactionService.getTransactionSummary('monthly');
         console.log('Dashboard summary data:', summary);
-        setSummaryData(summary);
         
-        // Get budgets status
-        const budgetsResponse = await BudgetService.getAllBudgetsStatus();
-        setBudgetData(budgetsResponse.budgets || []);
+        if (summary) {
+          setSummaryData({
+            income: summary.income || 0,
+            expense: summary.expense || 0,
+            netBalance: (summary.income || 0) - (summary.expense || 0),
+            categoryBreakdown: summary.categoryBreakdown || {}
+          });
+          
+          // Set category data for pie chart if available
+          if (summary.categoryBreakdown) {
+            const categories = Object.entries(summary.categoryBreakdown)
+              .map(([name, amount]) => ({ name, value: amount }))
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 5); // Top 5 categories
+            
+            setCategoryData(categories);
+          }
+        }
         
         // Get recent transactions
         const transactions = await TransactionService.getAllTransactions();
         setRecentTransactions(transactions.slice(0, 5)); // Get 5 most recent
         
-        // Set category data for pie chart if available
-        if (summary && summary.categoryBreakdown) {
-          const categories = Object.entries(summary.categoryBreakdown)
-            .map(([name, amount]) => ({ name, value: amount }))
-            .filter(item => item.value > 0);
-          setCategoryData(categories);
-        }
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
       } finally {
         setLoading(false);
       }
     };
     
     loadDashboardData();
-  }, [auth.user, fetchUserProfile]);
+  }, [auth, fetchUserProfile]);
 
-  // For the pie chart colors
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#FF6666'];
-
-  // Get budgets that are at risk (over threshold)
-  const getBudgetsAtRisk = () => {
-    if (!budgetData) return [];
-    return budgetData.filter(budget => {
-      return budget.status && budget.status.percentage >= budget.notificationThreshold;
-    }).sort((a, b) => b.status.percentage - a.status.percentage);
+  const formatCurrency = (amount) => {
+    return `$${amount.toFixed(2)}`;
   };
   
-  // Format date
   const formatDate = (dateString) => {
-    return format(new Date(dateString), 'MMM dd, yyyy');
+    return format(new Date(dateString), 'MMM d, yyyy');
   };
   
-  // Get amount display with proper formatting and color
   const getAmountDisplay = (amount, type) => {
-    return {
-      color: type === 'expense' ? 'error.main' : 'success.main',
-      prefix: type === 'expense' ? '-' : '+',
-      amount: amount.toFixed(2)
-    };
+    if (type === 'income') {
+      return {
+        prefix: '+',
+        amount: amount.toFixed(2),
+        color: 'success.main'
+      };
+    } else {
+      return {
+        prefix: '-',
+        amount: amount.toFixed(2),
+        color: 'error.main'
+      };
+    }
   };
+
+  // Chart colors
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   if (loading) {
     return (
@@ -122,104 +134,83 @@ const Dashboard = () => {
         <Typography variant="h4" gutterBottom>
           Welcome, {auth.user?.name || 'User'}
         </Typography>
-        <Typography variant="subtitle1" color="textSecondary">
-          Here's an overview of your finances
+        <Typography color="textSecondary">
+          Here's a summary of your financial activity
         </Typography>
       </Box>
-
-      {/* Summary Cards */}
+      
+      {/* Financial Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Income
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <TrendingUpIcon color="success" sx={{ mr: 1 }} />
-                {summaryData ? (
-                  <Typography variant="h4" color="success.main">
-                    ${summaryData.income?.toFixed(2) || '0.00'}
-                  </Typography>
-                ) : (
-                  <CircularProgress size={24} />
-                )}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <ArrowUpwardIcon color="success" sx={{ mr: 1 }} />
+                <Typography color="textSecondary">
+                  Monthly Income
+                </Typography>
               </Box>
-              <Typography variant="body2" color="textSecondary">
-                This month
+              <Typography variant="h4" color="success.main">
+                {formatCurrency(summaryData.income)}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Expenses
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <TrendingDownIcon color="error" sx={{ mr: 1 }} />
-                {summaryData ? (
-                  <Typography variant="h4" color="error.main">
-                    ${summaryData.expense?.toFixed(2) || '0.00'}
-                  </Typography>
-                ) : (
-                  <CircularProgress size={24} />
-                )}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <ArrowDownwardIcon color="error" sx={{ mr: 1 }} />
+                <Typography color="textSecondary">
+                  Monthly Expenses
+                </Typography>
               </Box>
-              <Typography variant="body2" color="textSecondary">
-                This month
+              <Typography variant="h4" color="error.main">
+                {formatCurrency(summaryData.expense)}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} sm={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Balance
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <AccountBalanceIcon color="primary" sx={{ mr: 1 }} />
-                {summaryData ? (
-                  <Typography 
-                    variant="h4" 
-                    color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}
-                  >
-                    ${((summaryData.income || 0) - (summaryData.expense || 0)).toFixed(2)}
-                  </Typography>
-                ) : (
-                  <CircularProgress size={24} />
-                )}
+                <Typography color="textSecondary">
+                  Monthly Balance
+                </Typography>
               </Box>
               <Typography 
-                variant="body2" 
-                color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}
+                variant="h4" 
+                color={summaryData.netBalance >= 0 ? 'success.main' : 'error.main'}
               >
-                {summaryData.income - summaryData.expense >= 0 ? 'Saved' : 'Deficit'} this month
+                {formatCurrency(summaryData.netBalance)}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                color={summaryData.netBalance >= 0 ? 'success.main' : 'error.main'}
+              >
+                {summaryData.netBalance >= 0 ? 'Saved' : 'Deficit'} this month
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
-
-      {/* Charts and Recent Activity */}
+      
+      {/* Category Breakdown and Recent Transactions */}
       <Grid container spacing={3}>
-        {/* Expense By Category */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              Expenses By Category
+              Expense Breakdown
             </Typography>
-            
-            <Divider sx={{ mb: 2 }} />
             
             {categoryData.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 4 }}>
                 <Typography variant="body2" color="textSecondary">
-                  No expense data available yet.
+                  No expense data available. Add transactions to see your spending breakdown.
                 </Typography>
                 <Button
                   component={RouterLink}
@@ -345,186 +336,6 @@ const Dashboard = () => {
                 </Box>
               </>
             )}
-          </Paper>
-        </Grid>
-        
-        {/* Budget Overview */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Budget Status
-              </Typography>
-              <Button 
-                component={RouterLink} 
-                to="/budgets"
-                size="small"
-                endIcon={<AccountBalanceIcon />}
-              >
-                View All
-              </Button>
-            </Box>
-            
-            <Divider sx={{ mb: 2 }} />
-            
-            {budgetData.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography variant="body2" color="textSecondary">
-                  No budgets created yet.
-                </Typography>
-                <Button
-                  component={RouterLink}
-                  to="/budgets/new"
-                  variant="contained"
-                  sx={{ mt: 2 }}
-                  startIcon={<AddIcon />}
-                  size="small"
-                >
-                  Create Budget
-                </Button>
-              </Box>
-            ) : (
-              <>
-                <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                  Budgets At Risk
-                </Typography>
-                
-                {getBudgetsAtRisk().length === 0 ? (
-                  <Typography variant="body2" color="success.main" sx={{ mb: 2 }}>
-                    All budgets are under control!
-                  </Typography>
-                ) : (
-                  <Box sx={{ mb: 3 }}>
-                    {getBudgetsAtRisk().map((budget) => (
-                      <Box key={budget._id} sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="body2" sx={{ mr: 1 }}>
-                              {budget.name}
-                            </Typography>
-                            {budget.status.percentage >= 100 ? (
-                              <Chip label="Exceeded" size="small" color="error" />
-                            ) : (
-                              <Chip label="At Risk" size="small" color="warning" />
-                            )}
-                          </Box>
-                          <Typography 
-                            variant="body2" 
-                            color={budget.status.percentage >= 100 ? 'error.main' : 'warning.main'}
-                          >
-                            {budget.status.percentage.toFixed(0)}%
-                          </Typography>
-                        </Box>
-                        
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={Math.min(budget.status.percentage, 100)}
-                          color={budget.status.percentage >= 100 ? 'error' : 'warning'}
-                          sx={{ height: 5, borderRadius: 5 }}
-                        />
-                      </Box>
-                    ))}
-                    
-                    <Box sx={{ mt: 2, textAlign: 'right' }}>
-                      <Button
-                        component={RouterLink}
-                        to="/budgets/recommendations"
-                        size="small"
-                        color="primary"
-                      >
-                        Get Recommendations
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
-                
-                <Button
-                  component={RouterLink}
-                  to="/budgets/new"
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  size="small"
-                  sx={{ mt: 1 }}
-                >
-                  Add Budget
-                </Button>
-              </>
-            )}
-          </Paper>
-        </Grid>
-        
-        {/* Saving Goals or Tips */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Financial Insights
-            </Typography>
-            
-            <Divider sx={{ mb: 2 }} />
-            
-            {summaryData && summaryData.income > 0 ? (
-              <>
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Savings Rate
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {(summaryData.income - summaryData.expense) >= 0 ? (
-                      <ArrowUpwardIcon color="success" sx={{ mr: 1 }} />
-                    ) : (
-                      <ArrowDownwardIcon color="error" sx={{ mr: 1 }} />
-                    )}
-                    <Typography 
-                      variant="body1" 
-                      color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}
-                    >
-                      {Math.abs(((summaryData.income - summaryData.expense) / summaryData.income * 100)).toFixed(0)}% of income
-                      {(summaryData.income - summaryData.expense) >= 0 ? ' saved' : ' deficit'}
-                    </Typography>
-                  </Box>
-                  
-                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                    {summaryData.income - summaryData.expense >= 0 ? (
-                      summaryData.income - summaryData.expense >= 0.2 ? (
-                        'Excellent! You\'re saving more than 20% of your income.'
-                      ) : (
-                        'Try to increase your savings to at least 20% of your income.'
-                      )
-                    ) : (
-                      'You\'re spending more than you earn. Review your budget to reduce expenses.'
-                    )}
-                  </Typography>
-                </Box>
-                
-                <Box>
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Quick Tips
-                  </Typography>
-                  
-                  <List dense>
-                    <ListItem>
-                      <ListItemText
-                        primary="Track all expenses, no matter how small"
-                        secondary="Small expenses add up over time"
-                      />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText
-                        primary="Review your budget weekly"
-                        secondary="Regular reviews help you stay on track"
-                      />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText
-                        primary="Set up automatic savings transfers"
-                        secondary="Pay yourself first to build savings"
-                      />
-                    </ListItem>
-                  </List>
-                </Box>
-              </>
-            ) : null}
           </Paper>
         </Grid>
       </Grid>

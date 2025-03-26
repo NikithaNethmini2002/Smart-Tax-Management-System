@@ -43,10 +43,35 @@ const BudgetEdit = () => {
     const fetchBudget = async () => {
       try {
         setLoading(true);
+        console.log('Fetching budget with ID:', id);
+        
+        if (!id || id === 'undefined') {
+          setError('Invalid budget ID');
+          setLoading(false);
+          return;
+        }
+        
         const data = await BudgetService.getBudgetById(id);
-        setBudget(data);
+        console.log('Budget data received:', data);
+        
+        if (!data || !data._id) {
+          setError('Invalid budget data received');
+          setLoading(false);
+          return;
+        }
+        
+        setBudget({
+          name: data.name || '',
+          amount: data.amount || '',
+          period: data.period || 'monthly',
+          category: data.category || '',
+          startDate: data.startDate ? new Date(data.startDate) : new Date(),
+          notificationThreshold: data.notificationThreshold || 80
+        });
+        
       } catch (err) {
-        setError(err.message || 'Failed to fetch budget details');
+        console.error('Error fetching budget:', err);
+        setError('Budget not found or you don\'t have permission to edit it.');
       } finally {
         setLoading(false);
       }
@@ -59,11 +84,14 @@ const BudgetEdit = () => {
     try {
       setIsSubmitting(true);
       setError('');
-
+      
+      // Make API call to update budget
       await BudgetService.updateBudget(id, values);
+      
+      // Show success message
       setOpenSnackbar(true);
       
-      // Navigate back after success
+      // Redirect after a short delay
       setTimeout(() => {
         navigate('/budgets');
       }, 1500);

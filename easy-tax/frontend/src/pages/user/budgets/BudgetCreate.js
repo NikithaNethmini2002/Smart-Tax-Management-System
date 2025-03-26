@@ -35,25 +35,18 @@ const BudgetCreate = () => {
     'Other'
   ];
 
-  const initialValues = {
-    name: '',
-    amount: '',
-    period: 'monthly',
-    category: '',
-    startDate: new Date(),
-    notificationThreshold: 80
-  };
-
-  const handleSubmit = async (values, { resetForm }) => {
+  const handleSubmit = async (values, { setSubmitting }) => {
     try {
       setIsSubmitting(true);
       setError('');
-
+      
+      // Make API call to create budget
       await BudgetService.createBudget(values);
+      
+      // Show success message
       setOpenSnackbar(true);
       
-      // Reset form and navigate back after success
-      resetForm();
+      // Redirect after a short delay
       setTimeout(() => {
         navigate('/budgets');
       }, 1500);
@@ -61,6 +54,7 @@ const BudgetCreate = () => {
       setError(err.message || 'Error creating budget');
     } finally {
       setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -69,7 +63,7 @@ const BudgetCreate = () => {
       <Box sx={{ maxWidth: 800, mx: 'auto', my: 2 }}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>
-            Create New Budget
+            Create a New Budget
           </Typography>
           
           {error && (
@@ -79,11 +73,10 @@ const BudgetCreate = () => {
           )}
           
           <BudgetForm
-            initialValues={initialValues}
             onSubmit={handleSubmit}
             isSubmitting={isSubmitting}
-            buttonText="Create Budget"
             categories={categories}
+            buttonText="Create Budget"
           />
         </Paper>
       </Box>
