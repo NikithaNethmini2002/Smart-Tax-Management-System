@@ -9,6 +9,8 @@ const morgan = require('morgan');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
+const transactionRoutes = require('./routes/transaction.routes');
+const budgetRoutes = require('./routes/budget.routes');
 
 // Configuration
 dotenv.config();
@@ -42,6 +44,8 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/budgets', budgetRoutes);
 
 // Add this temporary route for debugging (REMOVE IN PRODUCTION)
 app.get('/api/debug/user/:email', async (req, res) => {

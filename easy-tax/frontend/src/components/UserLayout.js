@@ -20,7 +20,10 @@ import {
   Dashboard as DashboardIcon,
   Person as PersonIcon,
   ExitToApp as LogoutIcon,
-  VpnKey as KeyIcon
+  VpnKey as KeyIcon,
+  Receipt as TransactionIcon,
+  AccountBalance as BudgetIcon,
+  BarChart as ChartIcon
 } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
 
@@ -55,12 +58,28 @@ const UserLayout = ({ children, title }) => {
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </ListItem>
+        
+        <ListItem button component={RouterLink} to="/transactions">
+          <ListItemIcon>
+            <TransactionIcon />
+          </ListItemIcon>
+          <ListItemText primary="Transactions" />
+        </ListItem>
+        
+        <ListItem button component={RouterLink} to="/budgets">
+          <ListItemIcon>
+            <BudgetIcon />
+          </ListItemIcon>
+          <ListItemText primary="Budgets" />
+        </ListItem>
+        
         <ListItem button component={RouterLink} to="/profile">
           <ListItemIcon>
             <PersonIcon />
           </ListItemIcon>
           <ListItemText primary="Profile" />
         </ListItem>
+        
         <ListItem button component={RouterLink} to="/change-password">
           <ListItemIcon>
             <KeyIcon />

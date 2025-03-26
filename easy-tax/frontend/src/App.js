@@ -14,6 +14,17 @@ import UserDashboard from './pages/user/Dashboard';
 import UserProfile from './pages/user/Profile';
 import ChangePassword from './pages/user/ChangePassword';
 
+// New User Components for Expense and Budget Management
+import TransactionList from './pages/user/transactions/TransactionList';
+import TransactionCreate from './pages/user/transactions/TransactionCreate';
+import TransactionEdit from './pages/user/transactions/TransactionEdit';
+import TransactionDetails from './pages/user/transactions/TransactionDetails';
+import BudgetList from './pages/user/budgets/BudgetList';
+import BudgetCreate from './pages/user/budgets/BudgetCreate';
+import BudgetEdit from './pages/user/budgets/BudgetEdit';
+import BudgetDetails from './pages/user/budgets/BudgetDetails';
+import BudgetRecommendations from './pages/user/budgets/BudgetRecommendations';
+
 // Admin Components
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProfile from './pages/admin/Profile';
@@ -80,6 +91,82 @@ function App() {
               element={
                 <PrivateRoute>
                   <ChangePassword />
+                </PrivateRoute>
+              } 
+            />
+            
+            {/* New Transaction Routes */}
+            <Route 
+              path="/transactions" 
+              element={
+                <PrivateRoute>
+                  <TransactionList />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/transactions/new" 
+              element={
+                <PrivateRoute>
+                  <TransactionCreate />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/transactions/:id" 
+              element={
+                <PrivateRoute>
+                  <TransactionDetails />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/transactions/:id/edit" 
+              element={
+                <PrivateRoute>
+                  <TransactionEdit />
+                </PrivateRoute>
+              } 
+            />
+            
+            {/* New Budget Routes */}
+            <Route 
+              path="/budgets" 
+              element={
+                <PrivateRoute>
+                  <BudgetList />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/budgets/new" 
+              element={
+                <PrivateRoute>
+                  <BudgetCreate />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/budgets/:id" 
+              element={
+                <PrivateRoute>
+                  <BudgetDetails />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/budgets/:id/edit" 
+              element={
+                <PrivateRoute>
+                  <BudgetEdit />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/budgets/recommendations" 
+              element={
+                <PrivateRoute>
+                  <BudgetRecommendations />
                 </PrivateRoute>
               } 
             />
