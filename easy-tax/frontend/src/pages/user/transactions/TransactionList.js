@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -22,7 +22,8 @@ import {
   Snackbar,
   Tooltip,
   Card,
-  CardContent
+  CardContent,
+  TablePagination
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -34,11 +35,16 @@ import {
   FilterList as FilterIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  AccountBalance as AccountBalanceIcon
+  AccountBalance as AccountBalanceIcon,
+  Download as DownloadIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon
 } from '@mui/icons-material';
 import UserLayout from '../../../components/UserLayout';
 import TransactionService from '../../../services/transaction.service';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const TransactionList = () => {
   const [transactions, setTransactions] = useState([]);
@@ -47,6 +53,13 @@ const TransactionList = () => {
   const [success, setSuccess] = useState('');
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [sortBy, setSortBy] = useState('date');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -186,6 +199,145 @@ const TransactionList = () => {
     }).format(amount);
   };
 
+  // Get unique categories for filter dropdown
+  const categories = [...new Set(transactions.map(t => t.category))].sort();
+
+  // Handle sort column click
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Handle download as PDF
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF('landscape');
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text('Transaction History', 14, 22);
+    
+    // Add date
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${format(new Date(), 'MMMM d, yyyy')}`, 14, 30);
+    
+    // Create filtered data for the table
+    const tableData = transactions.map(t => [
+      format(new Date(t.date), 'MMM dd, yyyy'),
+      t.category,
+      t.type === 'income' ? 'Income' : 'Expense',
+      t.type === 'income' ? `$${t.amount.toFixed(2)}` : `-$${t.amount.toFixed(2)}`,
+      t.description || '-',
+      t.paymentMethod || '-'
+    ]);
+    
+    // Generate table
+    autoTable(doc, {
+      head: [['Date', 'Category', 'Type', 'Amount', 'Description', 'Payment Method']],
+      body: tableData,
+      startY: 40,
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [66, 133, 244], textColor: 255 },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      columnStyles: {
+        3: { halign: 'right' }, // Right align the amount column
+      }
+    });
+    
+    // Add summary information
+    const income = transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const expenses = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const balance = income - expenses;
+    
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.text(`Total Income: $${income.toFixed(2)}`, 14, finalY);
+    doc.text(`Total Expenses: $${expenses.toFixed(2)}`, 14, finalY + 7);
+    doc.text(`Balance: $${balance.toFixed(2)}`, 14, finalY + 14);
+    
+    // Apply filters text if any
+    if (searchTerm || categoryFilter || typeFilter) {
+      doc.setFontSize(10);
+      let filterText = 'Filters applied: ';
+      if (searchTerm) filterText += `Search: "${searchTerm}" `;
+      if (categoryFilter) filterText += `Category: ${categoryFilter} `;
+      if (typeFilter) filterText += `Type: ${typeFilter === 'income' ? 'Income' : 'Expense'} `;
+      
+      doc.text(filterText, 14, finalY + 25);
+    }
+    
+    // Save the PDF
+    doc.save('transactions.pdf');
+  };
+
+  // Apply filters and sorting
+  const applyFiltersAndSort = () => {
+    let filtered = [...transactions];
+
+    // Apply search term filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(t => 
+        (t.description && t.description.toLowerCase().includes(search)) ||
+        (t.category && t.category.toLowerCase().includes(search)) ||
+        (t.paymentMethod && t.paymentMethod.toLowerCase().includes(search))
+      );
+    }
+
+    // Apply category filter
+    if (categoryFilter) {
+      filtered = filtered.filter(t => t.category === categoryFilter);
+    }
+
+    // Apply type filter
+    if (typeFilter) {
+      filtered = filtered.filter(t => t.type === typeFilter);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (sortBy === 'date') {
+        return sortDirection === 'asc'
+          ? new Date(a.date) - new Date(b.date)
+          : new Date(b.date) - new Date(a.date);
+      } else if (sortBy === 'amount') {
+        return sortDirection === 'asc'
+          ? a.amount - b.amount
+          : b.amount - a.amount;
+      } else if (sortBy === 'category') {
+        return sortDirection === 'asc'
+          ? a.category.localeCompare(b.category)
+          : b.category.localeCompare(a.category);
+      }
+      return 0;
+    });
+
+    return filtered;
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const filteredTransactions = applyFiltersAndSort();
+  const displayedTransactions = filteredTransactions.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
   return (
     <UserLayout title="Transactions">
       {/* Summary Widgets */}
@@ -263,15 +415,24 @@ const TransactionList = () => {
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
           <Typography variant="h4">Transactions</Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            component={RouterLink}
-            to="/transactions/new"
-            startIcon={<AddIcon />}
-          >
-            Add Transaction
-          </Button>
+          <Box>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              sx={{ mr: 2 }}
+              onClick={handleDownloadPDF}
+            >
+              Download PDF
+            </Button>
+            <Button
+              component={RouterLink}
+              to="/transactions/new"
+              variant="contained"
+              startIcon={<AddIcon />}
+            >
+              Add Transaction
+            </Button>
+          </Box>
         </Box>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -288,8 +449,8 @@ const TransactionList = () => {
                 fullWidth
                 label="Type"
                 name="type"
-                value={filters.type}
-                onChange={handleFilterChange}
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
                 margin="normal"
               >
                 <MenuItem value="">All</MenuItem>
@@ -303,18 +464,18 @@ const TransactionList = () => {
                 fullWidth
                 label="Category"
                 name="category"
-                value={filters.category}
-                onChange={handleFilterChange}
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
                 margin="normal"
-                disabled={!filters.type}
+                disabled={!typeFilter}
               >
                 <MenuItem value="">All</MenuItem>
-                {filters.type === 'expense' && 
+                {typeFilter === 'expense' && 
                   expenseCategories.map(cat => (
                     <MenuItem key={cat} value={cat}>{cat}</MenuItem>
                   ))
                 }
-                {filters.type === 'income' && 
+                {typeFilter === 'income' && 
                   incomeCategories.map(cat => (
                     <MenuItem key={cat} value={cat}>{cat}</MenuItem>
                   ))
@@ -370,6 +531,19 @@ const TransactionList = () => {
                 placeholder="e.g., #vacation, #business"
               />
             </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                label="Search"
+                variant="outlined"
+                fullWidth
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by description, category..."
+                InputProps={{
+                  endAdornment: <SearchIcon color="action" />
+                }}
+              />
+            </Grid>
             <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
               <Button 
                 variant="outlined" 
@@ -394,7 +568,7 @@ const TransactionList = () => {
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <CircularProgress />
           </Box>
-        ) : transactions.length === 0 ? (
+        ) : filteredTransactions.length === 0 ? (
           <Paper sx={{ p: 3, textAlign: 'center' }}>
             <Typography>No transactions found.</Typography>
             <Button 
@@ -407,76 +581,108 @@ const TransactionList = () => {
             </Button>
           </Paper>
         ) : (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Tags</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactions.map((transaction) => (
-                  <TableRow key={transaction._id}>
-                    <TableCell>{formatDate(transaction.date)}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)} 
-                        color={transaction.type === 'income' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{transaction.category}</TableCell>
-                    <TableCell>{transaction.description}</TableCell>
+          <>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
                     <TableCell 
-                      sx={{ 
-                        color: transaction.type === 'income' ? 'success.main' : 'error.main',
-                        fontWeight: 'bold'
-                      }}
+                      onClick={() => handleSort('date')}
+                      sx={{ cursor: 'pointer', fontWeight: 'bold' }}
                     >
-                      {formatAmount(transaction.amount, transaction.type)}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        Date
+                        {sortBy === 'date' && (
+                          sortDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        )}
+                      </Box>
                     </TableCell>
-                    <TableCell>
-                      {transaction.tags && transaction.tags.map((tag, index) => (
-                        <Chip 
-                          key={index} 
-                          label={tag} 
-                          size="small" 
-                          sx={{ mr: 0.5, mb: 0.5 }} 
-                        />
-                      ))}
+                    <TableCell 
+                      onClick={() => handleSort('category')}
+                      sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        Category
+                        {sortBy === 'category' && (
+                          sortDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        )}
+                      </Box>
                     </TableCell>
-                    <TableCell>
-                      <Tooltip title="Edit">
-                        <IconButton 
-                          component={RouterLink} 
-                          to={`/transactions/${transaction._id}/edit`}
-                          size="small"
-                          color="primary"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton 
-                          onClick={() => handleDelete(transaction._id)}
-                          size="small"
-                          color="error"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                    <TableCell 
+                      onClick={() => handleSort('amount')}
+                      sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        Amount
+                        {sortBy === 'amount' && (
+                          sortDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        )}
+                      </Box>
                     </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Payment Method</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {displayedTransactions.map((transaction) => (
+                    <TableRow key={transaction._id}>
+                      <TableCell>{formatDate(transaction.date)}</TableCell>
+                      <TableCell>{transaction.category}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={transaction.type === 'income' ? 'Income' : 'Expense'} 
+                          color={transaction.type === 'income' ? 'success' : 'error'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell 
+                        sx={{ 
+                          color: transaction.type === 'income' ? 'success.main' : 'error.main',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {formatAmount(transaction.amount, transaction.type)}
+                      </TableCell>
+                      <TableCell>{transaction.description}</TableCell>
+                      <TableCell>{transaction.paymentMethod || '-'}</TableCell>
+                      <TableCell>
+                        <Tooltip title="Edit">
+                          <IconButton 
+                            component={RouterLink} 
+                            to={`/transactions/${transaction._id}/edit`}
+                            size="small"
+                            color="primary"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            onClick={() => handleDelete(transaction._id)}
+                            size="small"
+                            color="error"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={filteredTransactions.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </>
         )}
       </Box>
 
