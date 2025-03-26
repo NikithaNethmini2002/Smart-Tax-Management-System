@@ -311,27 +311,29 @@ exports.getAllBudgetsWithStatus = async (req, res) => {
 // Get recommendations for budget adjustments
 exports.getBudgetRecommendations = async (req, res) => {
   try {
-    // Get all active budgets
-    const budgets = await Budget.find({ 
+    // Get user budgets
+    const budgets = await Budget.find({
       user: req.user._id,
       active: true
     });
     
     const recommendations = [];
     
-    // For each budget, check past performance
+    // Calculate three months ago date for historical analysis
+    const now = new Date();
+    const threeMonthsAgo = new Date(now);
+    threeMonthsAgo.setMonth(now.getMonth() - 3);
+    
+    // Analyze each budget
     for (const budget of budgets) {
-      // Get the last 3 months of data for this budget
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      
-      // Query to find expenses for this category in the last 3 months
+      // Get the query to match transactions for this budget
       const query = {
         user: req.user._id,
         type: 'expense',
         date: { $gte: threeMonthsAgo }
       };
       
+      // Add category filter if this is a category budget
       if (budget.category) {
         query.category = budget.category;
       }
