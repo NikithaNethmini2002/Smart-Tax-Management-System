@@ -53,6 +53,7 @@ const Dashboard = () => {
         
         // Fetch transaction summary
         const summary = await TransactionService.getTransactionSummary('monthly');
+        console.log('Dashboard summary data:', summary);
         setSummaryData(summary);
         
         // Get budgets status
@@ -136,9 +137,13 @@ const Dashboard = () => {
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TrendingUpIcon color="success" sx={{ mr: 1 }} />
-                <Typography variant="h4" color="success.main">
-                  ${summaryData?.totalIncome?.toFixed(2) || '0.00'}
-                </Typography>
+                {summaryData ? (
+                  <Typography variant="h4" color="success.main">
+                    ${summaryData.income?.toFixed(2) || '0.00'}
+                  </Typography>
+                ) : (
+                  <CircularProgress size={24} />
+                )}
               </Box>
               <Typography variant="body2" color="textSecondary">
                 This month
@@ -155,9 +160,13 @@ const Dashboard = () => {
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TrendingDownIcon color="error" sx={{ mr: 1 }} />
-                <Typography variant="h4" color="error.main">
-                  ${summaryData?.totalExpense?.toFixed(2) || '0.00'}
-                </Typography>
+                {summaryData ? (
+                  <Typography variant="h4" color="error.main">
+                    ${summaryData.expense?.toFixed(2) || '0.00'}
+                  </Typography>
+                ) : (
+                  <CircularProgress size={24} />
+                )}
               </Box>
               <Typography variant="body2" color="textSecondary">
                 This month
@@ -174,18 +183,22 @@ const Dashboard = () => {
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <AccountBalanceIcon color="primary" sx={{ mr: 1 }} />
-                <Typography 
-                  variant="h4" 
-                  color={summaryData?.balance >= 0 ? 'success.main' : 'error.main'}
-                >
-                  ${Math.abs(summaryData?.balance || 0).toFixed(2)}
-                </Typography>
+                {summaryData ? (
+                  <Typography 
+                    variant="h4" 
+                    color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}
+                  >
+                    ${((summaryData.income || 0) - (summaryData.expense || 0)).toFixed(2)}
+                  </Typography>
+                ) : (
+                  <CircularProgress size={24} />
+                )}
               </Box>
               <Typography 
                 variant="body2" 
-                color={summaryData?.balance >= 0 ? 'success.main' : 'error.main'}
+                color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}
               >
-                {summaryData?.balance >= 0 ? 'Saved' : 'Deficit'} this month
+                {summaryData.income - summaryData.expense >= 0 ? 'Saved' : 'Deficit'} this month
               </Typography>
             </CardContent>
           </Card>
@@ -449,47 +462,39 @@ const Dashboard = () => {
             
             <Divider sx={{ mb: 2 }} />
             
-            {summaryData?.balance !== undefined && (
+            {summaryData && summaryData.income > 0 ? (
               <>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Savings Rate
                   </Typography>
                   
-                  {summaryData.totalIncome > 0 ? (
-                    <>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        {summaryData.balance >= 0 ? (
-                          <ArrowUpwardIcon color="success" sx={{ mr: 1 }} />
-                        ) : (
-                          <ArrowDownwardIcon color="error" sx={{ mr: 1 }} />
-                        )}
-                        <Typography 
-                          variant="body1" 
-                          color={summaryData.balance >= 0 ? 'success.main' : 'error.main'}
-                        >
-                          {Math.abs((summaryData.balance / summaryData.totalIncome * 100)).toFixed(0)}% of income
-                          {summaryData.balance >= 0 ? ' saved' : ' deficit'}
-                        </Typography>
-                      </Box>
-                      
-                      <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        {summaryData.balance >= 0 ? (
-                          summaryData.balance / summaryData.totalIncome >= 0.2 ? (
-                            'Excellent! You\'re saving more than 20% of your income.'
-                          ) : (
-                            'Try to increase your savings to at least 20% of your income.'
-                          )
-                        ) : (
-                          'You\'re spending more than you earn. Review your budget to reduce expenses.'
-                        )}
-                      </Typography>
-                    </>
-                  ) : (
-                    <Typography variant="body2" color="textSecondary">
-                      No income recorded yet for this period.
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {(summaryData.income - summaryData.expense) >= 0 ? (
+                      <ArrowUpwardIcon color="success" sx={{ mr: 1 }} />
+                    ) : (
+                      <ArrowDownwardIcon color="error" sx={{ mr: 1 }} />
+                    )}
+                    <Typography 
+                      variant="body1" 
+                      color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}
+                    >
+                      {Math.abs(((summaryData.income - summaryData.expense) / summaryData.income * 100)).toFixed(0)}% of income
+                      {(summaryData.income - summaryData.expense) >= 0 ? ' saved' : ' deficit'}
                     </Typography>
-                  )}
+                  </Box>
+                  
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    {summaryData.income - summaryData.expense >= 0 ? (
+                      summaryData.income - summaryData.expense >= 0.2 ? (
+                        'Excellent! You\'re saving more than 20% of your income.'
+                      ) : (
+                        'Try to increase your savings to at least 20% of your income.'
+                      )
+                    ) : (
+                      'You\'re spending more than you earn. Review your budget to reduce expenses.'
+                    )}
+                  </Typography>
                 </Box>
                 
                 <Box>
@@ -519,7 +524,7 @@ const Dashboard = () => {
                   </List>
                 </Box>
               </>
-            )}
+            ) : null}
           </Paper>
         </Grid>
       </Grid>
