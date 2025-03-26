@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
+const mongoose = require('mongoose');
 
 // Get all transactions for a user
 exports.getAllTransactions = async (req, res) => {
@@ -239,84 +240,84 @@ exports.filterTransactions = async (req, res) => {
 // Get transaction summary (for dashboard)
 exports.getTransactionSummary = async (req, res) => {
   try {
-    const { period } = req.query;
+    const { period } = req.query; // 'daily', 'weekly', 'monthly', 'yearly'
+    
+    // Default to monthly if no period specified
+    const timePeriod = period || 'monthly';
+    
+    // Set date range based on period
+    const now = new Date();
     let startDate;
     
-    // Determine start date based on requested period
-    if (period === 'week') {
-      startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (period === 'month') {
-      startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1);
-    } else if (period === 'year') {
-      startDate = new Date();
-      startDate.setFullYear(startDate.getFullYear() - 1);
+    if (timePeriod === 'daily') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    } else if (timePeriod === 'weekly') {
+      const dayOfWeek = now.getDay();
+      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Sunday
+      startDate = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0);
+    } else if (timePeriod === 'monthly') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    } else if (timePeriod === 'yearly') {
+      startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
     } else {
-      // Default to month if no valid period is provided
-      startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1);
+      return res.status(400).json({ message: 'Invalid period' });
     }
-
-    // Get income summary
-    const incomeSummary = await Transaction.aggregate([
+    
+    // Get income and expense totals for the period
+    const incomeTotal = await Transaction.aggregate([
       { 
         $match: { 
-          user: req.user._id, 
+          user: mongoose.Types.ObjectId(req.user._id),
           type: 'income',
-          date: { $gte: startDate }
+          date: { $gte: startDate, $lte: now }
         } 
       },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: "$amount" } 
-        } 
-      }
-    ]);
-
-    // Get expense summary
-    const expenseSummary = await Transaction.aggregate([
-      { 
-        $match: { 
-          user: req.user._id, 
-          type: 'expense',
-          date: { $gte: startDate }
-        } 
-      },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: "$amount" } 
-        } 
-      }
+      { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
     
-    // Get category breakdown for expenses
+    const expenseTotal = await Transaction.aggregate([
+      { 
+        $match: { 
+          user: mongoose.Types.ObjectId(req.user._id),
+          type: 'expense',
+          date: { $gte: startDate, $lte: now }
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    
+    // Get spending by category
     const categoryBreakdown = await Transaction.aggregate([
       { 
         $match: { 
-          user: req.user._id, 
+          user: mongoose.Types.ObjectId(req.user._id),
           type: 'expense',
-          date: { $gte: startDate }
+          date: { $gte: startDate, $lte: now }
         } 
       },
-      { 
-        $group: { 
-          _id: "$category", 
-          total: { $sum: "$amount" } 
-        } 
-      },
+      { $group: { _id: '$category', total: { $sum: '$amount' } } },
       { $sort: { total: -1 } }
     ]);
-
+    
+    // Format category breakdown as an object
+    const categories = {};
+    categoryBreakdown.forEach(cat => {
+      categories[cat._id || 'Uncategorized'] = cat.total;
+    });
+    
+    // Calculate totals and balance
+    const totalIncome = incomeTotal.length > 0 ? incomeTotal[0].total : 0;
+    const totalExpense = expenseTotal.length > 0 ? expenseTotal[0].total : 0;
+    const balance = totalIncome - totalExpense;
+    
     res.json({
-      income: incomeSummary.length > 0 ? incomeSummary[0].total : 0,
-      expense: expenseSummary.length > 0 ? expenseSummary[0].total : 0,
-      categories: categoryBreakdown.map(item => ({
-        category: item._id,
-        amount: item.total
-      }))
+      period: timePeriod,
+      startDate,
+      endDate: now,
+      totalIncome,
+      totalExpense,
+      balance,
+      categoryBreakdown: categories
     });
   } catch (error) {
     console.error('Error getting transaction summary:', error);

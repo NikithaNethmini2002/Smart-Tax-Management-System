@@ -20,14 +20,21 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Tooltip
+  Tooltip,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Visibility as ViewIcon,
+  FilterList as FilterIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  AccountBalance as AccountBalanceIcon
 } from '@mui/icons-material';
 import UserLayout from '../../../components/UserLayout';
 import TransactionService from '../../../services/transaction.service';
@@ -39,6 +46,7 @@ const TransactionList = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -90,6 +98,7 @@ const TransactionList = () => {
 
   useEffect(() => {
     fetchTransactions();
+    fetchSummary();
   }, []);
 
   const fetchTransactions = async () => {
@@ -102,6 +111,17 @@ const TransactionList = () => {
       setError(err.message || 'Failed to fetch transactions');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSummary = async () => {
+    try {
+      console.log('Fetching transaction summary...');
+      const summary = await TransactionService.getTransactionSummary('monthly');
+      console.log('Summary data received:', summary);
+      setSummaryData(summary);
+    } catch (err) {
+      console.error('Error fetching transaction summary:', err);
     }
   };
 
@@ -172,6 +192,78 @@ const TransactionList = () => {
 
   return (
     <UserLayout title="Transactions">
+      {/* Summary Widgets */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Income
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <TrendingUpIcon color="success" sx={{ mr: 1 }} />
+                {summaryData ? (
+                  <Typography variant="h4" color="success.main">
+                    ${summaryData.income?.toFixed(2) || '0.00'}
+                  </Typography>
+                ) : (
+                  <CircularProgress size={24} />
+                )}
+              </Box>
+              <Typography variant="body2" color="textSecondary">
+                This month
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Expenses
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <TrendingDownIcon color="error" sx={{ mr: 1 }} />
+                {summaryData ? (
+                  <Typography variant="h4" color="error.main">
+                    ${summaryData.expense?.toFixed(2) || '0.00'}
+                  </Typography>
+                ) : (
+                  <CircularProgress size={24} />
+                )}
+              </Box>
+              <Typography variant="body2" color="textSecondary">
+                This month
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Balance
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccountBalanceIcon color="primary" sx={{ mr: 1 }} />
+                {summaryData ? (
+                  <Typography variant="h4" color={(summaryData.income - summaryData.expense) >= 0 ? 'success.main' : 'error.main'}>
+                    ${((summaryData.income || 0) - (summaryData.expense || 0)).toFixed(2)}
+                  </Typography>
+                ) : (
+                  <CircularProgress size={24} />
+                )}
+              </Box>
+              <Typography variant="body2" color="textSecondary">
+                This month
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
           <Typography variant="h4">Transactions</Typography>
