@@ -16,7 +16,7 @@ router.get('/', budgetController.getAllBudgets);
 // @route   GET api/budgets/status
 // @desc    Get all budgets status
 // @access  Private
-router.get('/status', budgetController.getAllBudgetsStatus);
+router.get('/status', budgetController.getAllBudgetsWithStatus);
 
 // @route   GET api/budgets/recommendations
 // @desc    Get budget adjustment recommendations

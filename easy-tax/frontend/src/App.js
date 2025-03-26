@@ -14,11 +14,13 @@ import UserDashboard from './pages/user/Dashboard';
 import UserProfile from './pages/user/Profile';
 import ChangePassword from './pages/user/ChangePassword';
 
-// New User Components for Expense and Budget Management
+// Transaction Components
 import TransactionList from './pages/user/transactions/TransactionList';
 import TransactionCreate from './pages/user/transactions/TransactionCreate';
 import TransactionEdit from './pages/user/transactions/TransactionEdit';
 import TransactionDetails from './pages/user/transactions/TransactionDetails';
+
+// Budget Components
 import BudgetList from './pages/user/budgets/BudgetList';
 import BudgetCreate from './pages/user/budgets/BudgetCreate';
 import BudgetEdit from './pages/user/budgets/BudgetEdit';
@@ -95,7 +97,7 @@ function App() {
               } 
             />
             
-            {/* New Transaction Routes */}
+            {/* Transaction Routes */}
             <Route 
               path="/transactions" 
               element={
@@ -129,7 +131,7 @@ function App() {
               } 
             />
             
-            {/* New Budget Routes */}
+            {/* Budget Routes */}
             <Route 
               path="/budgets" 
               element={
@@ -155,7 +157,7 @@ function App() {
               } 
             />
             <Route 
-              path="/budgets/:id/edit" 
+              path="/budgets/edit/:id" 
               element={
                 <PrivateRoute>
                   <BudgetEdit />

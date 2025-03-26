@@ -53,6 +53,20 @@ exports.createBudget = async (req, res) => {
       notificationThreshold
     } = req.body;
 
+    // Check for existing budget with same category and period
+    const existingBudget = await Budget.findOne({
+      user: req.user._id,
+      category: category || '',
+      period: period || 'monthly',
+      active: true
+    });
+
+    if (existingBudget) {
+      return res.status(400).json({ 
+        message: `You already have an active budget for ${category || 'all categories'} in this ${period || 'monthly'} period` 
+      });
+    }
+
     const budget = new Budget({
       user: req.user._id,
       name,
@@ -68,6 +82,9 @@ exports.createBudget = async (req, res) => {
     res.status(201).json(budget);
   } catch (error) {
     console.error('Error creating budget:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'You already have a budget for this category and period' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -100,6 +117,25 @@ exports.updateBudget = async (req, res) => {
       return res.status(404).json({ message: 'Budget not found' });
     }
 
+    // Check for duplicates if changing category or period
+    if ((period && period !== budget.period) || 
+        (category !== undefined && category !== budget.category)) {
+      
+      const existingBudget = await Budget.findOne({
+        user: req.user._id,
+        category: category || '',
+        period: period || budget.period,
+        active: true,
+        _id: { $ne: budget._id } // Exclude current budget
+      });
+
+      if (existingBudget) {
+        return res.status(400).json({ 
+          message: `You already have an active budget for ${category || 'all categories'} in this ${period || 'monthly'} period` 
+        });
+      }
+    }
+
     // Update budget fields
     if (name) budget.name = name;
     if (amount) budget.amount = amount;
@@ -117,6 +153,9 @@ exports.updateBudget = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Budget not found' });
     }
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'You already have a budget for this category and period' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -133,7 +172,8 @@ exports.deleteBudget = async (req, res) => {
       return res.status(404).json({ message: 'Budget not found' });
     }
 
-    await budget.remove();
+    // Use findByIdAndDelete instead of remove
+    await Budget.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Budget deleted successfully' });
   } catch (error) {
@@ -145,7 +185,7 @@ exports.deleteBudget = async (req, res) => {
   }
 };
 
-// Get budget status (current spending vs. allocated budget)
+// Get budget status
 exports.getBudgetStatus = async (req, res) => {
   try {
     const budget = await Budget.findOne({ 
@@ -157,11 +197,8 @@ exports.getBudgetStatus = async (req, res) => {
       return res.status(404).json({ message: 'Budget not found' });
     }
 
-    // Get spending data
-    const { period, category, amount } = budget;
-    
     // Calculate period start and end dates
-    const periodInfo = calculatePeriodDates(period, budget.startDate);
+    const periodInfo = calculatePeriodDates(budget.period, budget.startDate);
     
     // Get expenses for this period and category
     const expenseQuery = {
@@ -170,8 +207,8 @@ exports.getBudgetStatus = async (req, res) => {
       date: { $gte: periodInfo.startDate, $lte: periodInfo.endDate }
     };
     
-    if (category) {
-      expenseQuery.category = category;
+    if (budget.category) {
+      expenseQuery.category = budget.category;
     }
     
     const expenses = await Transaction.aggregate([
@@ -180,49 +217,52 @@ exports.getBudgetStatus = async (req, res) => {
     ]);
     
     const spent = expenses.length > 0 ? expenses[0].total : 0;
-    const remaining = amount - spent;
-    const percentUsed = (spent / amount) * 100;
+    const remaining = budget.amount - spent;
+    const percentage = (spent / budget.amount) * 100;
     
-    // Get spending trend data
-    const trendData = await getExpenseTrendData(
-      req.user._id,
-      budget,
-      periodInfo.startDate,
-      periodInfo.endDate
-    );
+    // Get trend data for detailed analysis
+    const trendData = await getExpenseTrendData(req.user._id, budget, periodInfo.startDate, periodInfo.endDate);
     
     res.json({
       budget: {
-        id: budget._id,
+        _id: budget._id,
         name: budget.name,
-        amount,
-        period,
-        category: category || 'Overall'
+        amount: budget.amount,
+        period: budget.period,
+        category: budget.category,
+        startDate: budget.startDate,
+        notificationThreshold: budget.notificationThreshold
       },
       status: {
         spent,
         remaining,
-        percentUsed,
-        thresholdReached: percentUsed >= budget.notificationThreshold
-      },
-      periodInfo,
-      trend: trendData
+        percentage,
+        thresholdReached: percentage >= budget.notificationThreshold,
+        periodStart: periodInfo.startDate,
+        periodEnd: periodInfo.endDate,
+        trendData
+      }
     });
   } catch (error) {
     console.error('Error getting budget status:', error);
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Budget not found' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Get status for all budgets
-exports.getAllBudgetsStatus = async (req, res) => {
+// Get all budgets with their status
+exports.getAllBudgetsWithStatus = async (req, res) => {
   try {
-    const budgets = await Budget.find({ 
-      user: req.user._id,
-      active: true
-    });
+    console.log('Getting all budgets with status for user:', req.user._id);
     
-    const budgetsStatus = await Promise.all(budgets.map(async (budget) => {
+    // Get all budgets for the user
+    const budgets = await Budget.find({ user: req.user._id });
+    console.log('Found budgets:', budgets.length);
+    
+    // Calculate status for each budget
+    const budgetsWithStatus = await Promise.all(budgets.map(async (budget) => {
       // Calculate period start and end dates
       const periodInfo = calculatePeriodDates(budget.period, budget.startDate);
       
@@ -244,137 +284,152 @@ exports.getAllBudgetsStatus = async (req, res) => {
       
       const spent = expenses.length > 0 ? expenses[0].total : 0;
       const remaining = budget.amount - spent;
-      const percentUsed = (spent / budget.amount) * 100;
+      const percentage = (spent / budget.amount) * 100;
       
       return {
-        budget: {
-          id: budget._id,
-          name: budget.name,
-          amount: budget.amount,
-          period: budget.period,
-          category: budget.category || 'Overall'
-        },
+        _id: budget._id,
+        name: budget.name,
+        amount: budget.amount,
+        period: budget.period,
+        category: budget.category,
+        startDate: budget.startDate,
+        notificationThreshold: budget.notificationThreshold,
+        active: budget.active,
         status: {
           spent,
           remaining,
-          percentUsed,
-          thresholdReached: percentUsed >= budget.notificationThreshold
+          percentage,
+          thresholdReached: percentage >= budget.notificationThreshold
         }
       };
     }));
     
-    // Sort by percentage used (highest first)
-    budgetsStatus.sort((a, b) => b.status.percentUsed - a.status.percentUsed);
-    
-    res.json(budgetsStatus);
+    console.log('Returning budgets with status:', budgetsWithStatus.length);
+    res.json({ budgets: budgetsWithStatus });
   } catch (error) {
-    console.error('Error getting all budgets status:', error);
+    console.error('Error getting budgets with status:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Get budget recommendations
+// Get recommendations for budget adjustments
 exports.getBudgetRecommendations = async (req, res) => {
   try {
+    // Get all active budgets
     const budgets = await Budget.find({ 
       user: req.user._id,
       active: true
     });
     
-    const recommendations = await Promise.all(budgets.map(async (budget) => {
-      // Get historical spending data for this category
-      const now = new Date();
-      const threeMonthsAgo = new Date(now);
-      threeMonthsAgo.setMonth(now.getMonth() - 3);
+    const recommendations = [];
+    
+    // For each budget, check past performance
+    for (const budget of budgets) {
+      // Get the last 3 months of data for this budget
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
       
-      const expenseQuery = {
+      // Query to find expenses for this category in the last 3 months
+      const query = {
         user: req.user._id,
         type: 'expense',
-        date: { $gte: threeMonthsAgo, $lte: now }
+        date: { $gte: threeMonthsAgo }
       };
       
       if (budget.category) {
-        expenseQuery.category = budget.category;
+        query.category = budget.category;
       }
       
-      // Get monthly breakdown
+      // Group by month to get monthly totals
       const monthlyExpenses = await Transaction.aggregate([
-        { $match: expenseQuery },
-        { 
-          $group: { 
+        { $match: query },
+        {
+          $group: {
             _id: { 
               year: { $year: "$date" },
               month: { $month: "$date" }
-            }, 
-            total: { $sum: "$amount" } 
-          } 
+            },
+            total: { $sum: "$amount" }
+          }
         },
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]);
       
-      // Calculate average monthly expense
-      let avgMonthlyExpense = 0;
-      if (monthlyExpenses.length > 0) {
-        avgMonthlyExpense = monthlyExpenses.reduce((sum, month) => sum + month.total, 0) / monthlyExpenses.length;
-      }
-      
-      // Compare with budget amount and generate recommendation
-      let recommendation;
-      if (monthlyExpenses.length >= 2) {  // Need at least 2 months of data
-        // Calculate the percentage adjustment needed
-        const adjustment = ((avgMonthlyExpense - budget.amount) / budget.amount) * 100;
+      if (monthlyExpenses.length >= 2) {
+        // Calculate average spending
+        const totalSpent = monthlyExpenses.reduce((sum, month) => sum + month.total, 0);
+        const avgSpent = totalSpent / monthlyExpenses.length;
         
-        if (adjustment > 10) {  // Consistently spending 10%+ more than budgeted
-          recommendation = {
-            type: 'increase',
-            message: `Consider increasing your ${budget.category || 'overall'} budget by approximately ${Math.ceil(adjustment)}%.`,
-            suggestedAmount: Math.ceil(avgMonthlyExpense)
-          };
-        } else if (adjustment < -10) {  // Consistently spending 10%+ less than budgeted
-          recommendation = {
-            type: 'decrease',
-            message: `You're consistently under budget for ${budget.category || 'overall'} expenses. Consider reducing it by approximately ${Math.ceil(Math.abs(adjustment))}%.`,
-            suggestedAmount: Math.ceil(avgMonthlyExpense)
-          };
-        } else {
-          recommendation = {
-            type: 'maintain',
-            message: `Your ${budget.category || 'overall'} budget appears well-aligned with your spending patterns.`,
-            suggestedAmount: budget.amount
-          };
+        // If average spending is significantly different from budget, create recommendation
+        const difference = Math.abs(avgSpent - budget.amount);
+        const percentDifference = (difference / budget.amount) * 100;
+        
+        if (percentDifference >= 20) {
+          // More than 20% difference - recommend adjustment
+          const recommendedAmount = Math.round(avgSpent * 100) / 100;
+          
+          recommendations.push({
+            budgetId: budget._id,
+            budgetName: budget.name,
+            category: budget.category || 'All Categories',
+            currentAmount: budget.amount,
+            recommendedAmount,
+            percentDifference: Math.round(percentDifference),
+            reason: avgSpent > budget.amount ? 
+              'You consistently spend more than budgeted in this category' :
+              'You consistently spend less than budgeted in this category',
+            months: monthlyExpenses.length,
+            action: avgSpent > budget.amount ? 'increase' : 'decrease',
+            monthlyData: monthlyExpenses.map(month => ({
+              month: `${month._id.year}-${month._id.month}`,
+              amount: month.total
+            }))
+          });
         }
-      } else if (monthlyExpenses.length > 0) {
-        recommendation = {
-          type: 'maintain',
-          message: `Your ${budget.category || 'overall'} budget appears well-aligned with your spending patterns.`,
-          suggestedAmount: budget.amount
-        };
-      } else {
-        recommendation = {
-          type: 'insufficient_data',
-          message: `Not enough historical data to make a recommendation for your ${budget.category || 'overall'} budget.`,
-          suggestedAmount: budget.amount
-        };
       }
+    }
+    
+    // Also look for categories with significant spending but no budget
+    const categoriesWithoutBudget = await Transaction.aggregate([
+      { 
+        $match: { 
+          user: req.user._id,
+          type: 'expense',
+          date: { $gte: threeMonthsAgo }
+        } 
+      },
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: "$amount" }
+        }
+      },
+      { $sort: { total: -1 } }
+    ]);
+    
+    // Filter out categories that already have budgets
+    const budgetCategories = budgets.map(b => b.category);
+    const unbudgetedCategories = categoriesWithoutBudget.filter(
+      cat => !budgetCategories.includes(cat._id) && cat.total > 100
+    );
+    
+    // Add recommendations for top unbudgeted categories
+    unbudgetedCategories.slice(0, 3).forEach(category => {
+      const monthlyAvg = category.total / 3; // Assuming 3 months of data
       
-      return {
-        budgetId: budget._id,
-        budgetName: budget.name,
-        category: budget.category,
-        currentAmount: budget.amount,
-        averageSpending: avgMonthlyExpense,
-        monthlyTrend: monthlyExpenses.map(month => ({
-          year: month._id.year,
-          month: month._id.month,
-          amount: month.total
-        })),
-        recommendation
-      };
-    }));
-
-    res.json(recommendations);
+      recommendations.push({
+        category: category._id,
+        recommendedAmount: Math.round(monthlyAvg * 100) / 100,
+        totalSpent: category.total,
+        reason: 'You have significant spending in this category without a budget',
+        action: 'create',
+        recommendation: `Consider creating a budget of $${Math.round(monthlyAvg)} for ${category._id}`
+      });
+    });
+    
+    res.json({ recommendations });
   } catch (error) {
-    console.error('Error getting budget recommendations:', error);
+    console.error('Error generating budget recommendations:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -384,13 +439,14 @@ function calculatePeriodDates(period, startDate) {
   const now = new Date();
   let periodStartDate, periodEndDate;
   
+  // If startDate is provided, use it as a reference point
+  const referenceDate = startDate ? new Date(startDate) : now;
+  
   if (period === 'weekly') {
-    // Get the current day of week (0 = Sunday, 1 = Monday, etc.)
-    const currentDayOfWeek = now.getDay();
-    
-    // Calculate the date of the beginning of the week (Sunday)
-    periodStartDate = new Date(now);
-    periodStartDate.setDate(now.getDate() - currentDayOfWeek);
+    // Get the start of the week (Sunday)
+    const dayOfWeek = referenceDate.getDay(); // 0 = Sunday
+    periodStartDate = new Date(referenceDate);
+    periodStartDate.setDate(referenceDate.getDate() - dayOfWeek);
     periodStartDate.setHours(0, 0, 0, 0);
     
     // Calculate the end of the week (Saturday)

@@ -41,11 +41,25 @@ const BudgetList = () => {
   const fetchBudgets = async () => {
     try {
       setLoading(true);
-      const data = await BudgetService.getAllBudgetsStatus();
-      // The API returns budgets with their status info
-      setBudgets(data.budgets || []);
+      console.log('Fetching budgets...');
+      const response = await BudgetService.getAllBudgetsStatus();
+      console.log('Budgets data received:', response);
+      
+      // Handle both formats: array or {budgets: array}
+      if (Array.isArray(response)) {
+        console.log('Response is an array, using directly');
+        setBudgets(response);
+      } else if (response && response.budgets) {
+        console.log('Response has budgets property, using response.budgets');
+        setBudgets(response.budgets);
+      } else {
+        console.error('Unexpected response format:', response);
+        setBudgets([]);
+      }
+      
       setError('');
     } catch (err) {
+      console.error('Error fetching budgets:', err);
       setError(err.message || 'Failed to fetch budgets');
     } finally {
       setLoading(false);
@@ -55,12 +69,25 @@ const BudgetList = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this budget?')) {
       try {
+        console.log('Deleting budget with ID:', id);
+        
+        if (!id) {
+          setError('Invalid budget ID');
+          return;
+        }
+        
         await BudgetService.deleteBudget(id);
-        setBudgets(budgets.filter(budget => budget._id !== id));
+        console.log('Budget deleted successfully');
+        
+        // Refresh the budget list
+        await fetchBudgets();
+        
         setSuccess('Budget deleted successfully');
         setOpenSnackbar(true);
       } catch (err) {
+        console.error('Error deleting budget:', err);
         setError(err.message || 'Error deleting budget');
+        setOpenSnackbar(true);
       }
     }
   };
@@ -159,25 +186,25 @@ const BudgetList = () => {
                     )}
                     
                     <Typography variant="body2" color="textSecondary">
-                      Budget: ${budget.amount.toFixed(2)}
+                      Budget: ${budget.amount ? budget.amount.toFixed(2) : '0.00'}
                     </Typography>
                     
                     {budget.status && (
                       <>
                         <Typography variant="body2" color="textSecondary">
-                          Spent: ${budget.status.spent.toFixed(2)} ({budget.status.percentage.toFixed(0)}%)
+                          Spent: ${budget.status && typeof budget.status.spent === 'number' ? budget.status.spent.toFixed(2) : '0.00'}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                           <Box sx={{ width: '100%', mr: 1 }}>
                             <LinearProgress 
                               variant="determinate" 
-                              value={Math.min(budget.status.percentage, 100)} 
-                              color={getProgressColor(budget.status.percentage)}
+                              value={Math.min(budget.status && typeof budget.status.percentage === 'number' ? budget.status.percentage : 0, 100)} 
+                              color={getProgressColor(budget.status && typeof budget.status.percentage === 'number' ? budget.status.percentage : 0)}
                             />
                           </Box>
                           <Box sx={{ minWidth: 35 }}>
                             <Typography variant="body2" color="textSecondary">
-                              {budget.status.percentage.toFixed(0)}%
+                              {budget.status && typeof budget.status.percentage === 'number' ? budget.status.percentage.toFixed(0) : '0'}%
                             </Typography>
                           </Box>
                         </Box>
@@ -190,7 +217,7 @@ const BudgetList = () => {
                           {budget.status.percentage >= 100 ? (
                             'Budget exceeded!'
                           ) : (
-                            `Remaining: $${budget.status.remaining.toFixed(2)}`
+                            `Remaining: $${budget.status && typeof budget.status.remaining === 'number' ? budget.status.remaining.toFixed(2) : '0.00'}`
                           )}
                         </Typography>
                       </>
@@ -206,12 +233,13 @@ const BudgetList = () => {
                     </Button>
                     <Box sx={{ flexGrow: 1 }} />
                     <Tooltip title="Edit">
-                      <IconButton 
-                        component={RouterLink} 
-                        to={`/budgets/${budget._id}/edit`}
+                      <IconButton
+                        component={RouterLink}
+                        to={`/budgets/edit/${budget._id}`}
                         size="small"
+                        color="primary"
                       >
-                        <EditIcon fontSize="small" />
+                        <EditIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
