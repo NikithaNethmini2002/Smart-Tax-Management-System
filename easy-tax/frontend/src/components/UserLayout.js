@@ -29,6 +29,7 @@ import {
   Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
+import Chatbot from './chatbot/Chatbot';
 
 const drawerWidth = 240;
 
@@ -178,6 +179,8 @@ const UserLayout = ({ children, title }) => {
         <Toolbar />
         {children}
       </Box>
+      
+      <Chatbot />
     </Box>
   );
 };

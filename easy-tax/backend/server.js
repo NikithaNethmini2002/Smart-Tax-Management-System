@@ -11,6 +11,7 @@ const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
 const transactionRoutes = require('./routes/transaction.routes');
 const budgetRoutes = require('./routes/budget.routes');
+const chatbotRoutes = require('./routes/chatbot.routes');
 
 // Configuration
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Add this temporary route for debugging (REMOVE IN PRODUCTION)
 app.get('/api/debug/user/:email', async (req, res) => {
