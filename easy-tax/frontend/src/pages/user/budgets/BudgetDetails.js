@@ -47,11 +47,21 @@ const BudgetDetails = () => {
         
         // Get budget details
         const budgetData = await BudgetService.getBudgetById(id);
+        console.log('Budget data:', budgetData);
         setBudget(budgetData);
         
         // Get budget status
         const statusData = await BudgetService.getBudgetStatus(id);
-        setBudgetStatus(statusData);
+        console.log('Budget status data:', statusData);
+        
+        // Make sure we have valid status data
+        setBudgetStatus({
+          spent: statusData.spent !== undefined ? statusData.spent : 0,
+          remaining: statusData.remaining !== undefined ? statusData.remaining : 
+            (budgetData.amount - (statusData.spent || 0)),
+          percentage: statusData.percentage !== undefined ? statusData.percentage : 
+            ((statusData.spent || 0) / budgetData.amount * 100)
+        });
       } catch (err) {
         console.error('Error fetching budget details:', err);
         setError('Failed to load budget details');
@@ -66,22 +76,50 @@ const BudgetDetails = () => {
   const handleDelete = async () => {
     try {
       await BudgetService.deleteBudget(id);
-      navigate('/budgets', { state: { success: 'Budget deleted successfully' } });
+      navigate('/budgets');
     } catch (err) {
+      console.error('Error deleting budget:', err);
       setError('Failed to delete budget');
+      setOpenDeleteDialog(false);
     }
   };
-  
+
   const formatDate = (dateString) => {
-    return format(new Date(dateString), 'PPP');
+    try {
+      return format(new Date(dateString), 'MMMM d, yyyy');
+    } catch (e) {
+      return 'Invalid Date';
+    }
   };
-  
+
+  const formatCurrency = (amount) => {
+    if (amount === undefined || amount === null) {
+      return '$0.00';
+    }
+    return `$${Number(amount).toFixed(2)}`;
+  };
+
+  const formatPercentage = (value) => {
+    if (value === undefined || value === null) {
+      return '0%';
+    }
+    return `${Number(value).toFixed(0)}%`;
+  };
+
   const getProgressColor = (percentage) => {
-    if (percentage >= 100) return 'error';
-    if (percentage >= 80) return 'warning';
-    return 'primary';
+    if (percentage === undefined || percentage === null) {
+      return 'primary';
+    }
+    
+    if (percentage >= 100) {
+      return 'error';
+    } else if (percentage >= 80) {
+      return 'warning';
+    } else {
+      return 'success';
+    }
   };
-  
+
   const getPeriodLabel = (period) => {
     switch (period) {
       case 'weekly': return 'Weekly';
@@ -94,38 +132,40 @@ const BudgetDetails = () => {
   if (loading) {
     return (
       <UserLayout title="Budget Details">
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>
       </UserLayout>
     );
   }
 
-  if (error || !budget) {
+  if (error) {
     return (
       <UserLayout title="Budget Details">
         <Alert severity="error" sx={{ mt: 2 }}>
-          {error || 'Budget not found'}
+          {error}
         </Alert>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          component={RouterLink}
-          to="/budgets"
-          sx={{ mt: 2 }}
-        >
-          Back to Budgets
-        </Button>
+      </UserLayout>
+    );
+  }
+
+  if (!budget) {
+    return (
+      <UserLayout title="Budget Details">
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Budget not found or you don't have permission to view it.
+        </Alert>
       </UserLayout>
     );
   }
 
   return (
     <UserLayout title="Budget Details">
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: 4 }}>
         <Button
-          startIcon={<ArrowBackIcon />}
           component={RouterLink}
           to="/budgets"
+          startIcon={<ArrowBackIcon />}
           sx={{ mb: 2 }}
         >
           Back to Budgets
@@ -137,15 +177,14 @@ const BudgetDetails = () => {
             <Box>
               <IconButton
                 component={RouterLink}
-                to={`/budgets/edit/${budget._id}`}
+                to={`/budgets/edit/${id}`}
                 color="primary"
-                aria-label="edit budget"
+                sx={{ mr: 1 }}
               >
                 <EditIcon />
               </IconButton>
-              <IconButton
-                color="error"
-                aria-label="delete budget"
+              <IconButton 
+                color="error" 
                 onClick={() => setOpenDeleteDialog(true)}
               >
                 <DeleteIcon />
@@ -157,110 +196,96 @@ const BudgetDetails = () => {
           
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography variant="subtitle1" gutterBottom>
-                Budget Details
+              <Typography variant="subtitle1">
+                Category:
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {budget.category || 'All Categories'}
               </Typography>
               
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Amount:
-                </Typography>
-                <Typography variant="h6">
-                  ${budget.amount.toFixed(2)}
-                </Typography>
-              </Box>
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>
+                Budget Period:
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {getPeriodLabel(budget.period)}
+              </Typography>
               
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Period:
-                </Typography>
-                <Typography variant="body1">
-                  {getPeriodLabel(budget.period)}
-                </Typography>
-              </Box>
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>
+                Start Date:
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {formatDate(budget.startDate)}
+              </Typography>
               
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Category:
-                </Typography>
-                <Typography variant="body1">
-                  {budget.category || 'All Categories'}
-                </Typography>
-              </Box>
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>
+                Budget Amount:
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {formatCurrency(budget.amount)}
+              </Typography>
               
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Start Date:
-                </Typography>
-                <Typography variant="body1">
-                  {formatDate(budget.startDate)}
-                </Typography>
-              </Box>
-              
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Notification Threshold:
-                </Typography>
-                <Typography variant="body1">
-                  {budget.notificationThreshold}%
-                </Typography>
-              </Box>
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>
+                Notification Threshold:
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {formatPercentage(budget.notificationThreshold)}
+              </Typography>
             </Grid>
             
             <Grid item xs={12} md={6}>
+              <Typography variant="h6" gutterBottom>
+                Budget Status
+              </Typography>
+              
               {budgetStatus ? (
                 <>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Current Status
-                  </Typography>
-                  
                   <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">
-                        ${budgetStatus.spent.toFixed(2)} of ${budget.amount.toFixed(2)}
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {budgetStatus.percentage.toFixed(0)}%
-                      </Typography>
-                    </Box>
                     <LinearProgress 
                       variant="determinate" 
-                      value={Math.min(budgetStatus.percentage, 100)} 
+                      value={Math.min(budgetStatus.percentage || 0, 100)} 
                       color={getProgressColor(budgetStatus.percentage)}
                       sx={{ height: 10, borderRadius: 5 }}
                     />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                      <Typography variant="body2">
+                        {formatPercentage(budgetStatus.percentage || 0)} Used
+                      </Typography>
+                      <Typography variant="body2" color={getProgressColor(budgetStatus.percentage)}>
+                        {budgetStatus.percentage >= 100 ? 'Exceeded' : budgetStatus.percentage >= 80 ? 'Warning' : 'On Track'}
+                      </Typography>
+                    </Box>
                   </Box>
                   
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3, mb: 1 }}>
+                    <Typography variant="subtitle1">
                       Spent:
                     </Typography>
-                    <Typography variant="h6">
-                      ${budgetStatus.spent.toFixed(2)}
+                    <Typography variant="h6" color="error.main">
+                      {formatCurrency(budgetStatus.spent || 0)}
                     </Typography>
                   </Box>
                   
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                    <Typography variant="subtitle1">
                       Remaining:
                     </Typography>
                     <Typography 
                       variant="h6" 
-                      color={budgetStatus.remaining < 0 ? 'error.main' : 'success.main'}
+                      color={(budgetStatus.remaining || 0) < 0 ? 'error.main' : 'success.main'}
                     >
-                      ${budgetStatus.remaining.toFixed(2)}
+                      {formatCurrency(budgetStatus.remaining || 0)}
                     </Typography>
                   </Box>
                   
-                  {budgetStatus.percentage >= budget.notificationThreshold && (
+                  {(budgetStatus.percentage || 0) >= (budget.notificationThreshold || 80) && (
                     <Alert 
-                      severity={budgetStatus.percentage >= 100 ? 'error' : 'warning'}
+                      severity={(budgetStatus.percentage || 0) >= 100 ? 'error' : 'warning'}
                       icon={<WarningIcon />}
                       sx={{ mt: 2 }}
                     >
-                      {budgetStatus.percentage >= 100 
+                      {(budgetStatus.percentage || 0) >= 100 
                         ? 'Budget exceeded! You have spent more than your planned budget.' 
-                        : `Alert: You've used ${budgetStatus.percentage.toFixed(0)}% of your budget.`
+                        : `Alert: You've used ${formatPercentage(budgetStatus.percentage || 0)} of your budget.`
                       }
                     </Alert>
                   )}

@@ -188,69 +188,65 @@ exports.deleteBudget = async (req, res) => {
 // Get budget status
 exports.getBudgetStatus = async (req, res) => {
   try {
-    const budget = await Budget.findOne({ 
-      _id: req.params.id, 
-      user: req.user._id 
-    });
-
+    const budgetId = req.params.id;
+    const userId = req.user._id;
+    
+    // Find the budget
+    const budget = await Budget.findOne({ _id: budgetId, user: userId });
+    
     if (!budget) {
       return res.status(404).json({ message: 'Budget not found' });
     }
-
-    // Calculate period start and end dates
-    const periodInfo = calculatePeriodDates(budget.period, budget.startDate);
     
-    // Get expenses for this period and category
-    const expenseQuery = {
-      user: req.user._id,
-      type: 'expense',
-      date: { $gte: periodInfo.startDate, $lte: periodInfo.endDate }
-    };
+    // Calculate the budget status
+    const status = await calculateBudgetStatus(budget);
     
-    if (budget.category) {
-      expenseQuery.category = budget.category;
-    }
-    
-    const expenses = await Transaction.aggregate([
-      { $match: expenseQuery },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]);
-    
-    const spent = expenses.length > 0 ? expenses[0].total : 0;
-    const remaining = budget.amount - spent;
-    const percentage = (spent / budget.amount) * 100;
-    
-    // Get trend data for detailed analysis
-    const trendData = await getExpenseTrendData(req.user._id, budget, periodInfo.startDate, periodInfo.endDate);
-    
+    // Make sure we return a consistent format
     res.json({
-      budget: {
-        _id: budget._id,
-        name: budget.name,
-        amount: budget.amount,
-        period: budget.period,
-        category: budget.category,
-        startDate: budget.startDate,
-        notificationThreshold: budget.notificationThreshold
-      },
-      status: {
-        spent,
-        remaining,
-        percentage,
-        thresholdReached: percentage >= budget.notificationThreshold,
-        periodStart: periodInfo.startDate,
-        periodEnd: periodInfo.endDate,
-        trendData
-      }
+      budgetAmount: budget.amount,
+      spent: status.spent || 0,
+      remaining: status.remaining || 0,
+      percentage: status.percentage || 0
     });
   } catch (error) {
     console.error('Error getting budget status:', error);
-    if (error.kind === 'ObjectId') {
-      return res.status(404).json({ message: 'Budget not found' });
-    }
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Helper function to calculate budget status
+async function calculateBudgetStatus(budget) {
+  // Get date range for the budget period
+  const periodInfo = calculatePeriodDates(budget.period, budget.startDate);
+  
+  // Query for expenses within the budget period and category
+  const expenseQuery = {
+    user: budget.user,
+    type: 'expense',
+    date: { $gte: periodInfo.startDate, $lte: periodInfo.endDate }
+  };
+  
+  // Add category filter if this is a category-specific budget
+  if (budget.category) {
+    expenseQuery.category = budget.category;
+  }
+  
+  // Calculate total spent
+  const expenseResult = await Transaction.aggregate([
+    { $match: expenseQuery },
+    { $group: { _id: null, total: { $sum: '$amount' } } }
+  ]);
+  
+  const spent = expenseResult.length > 0 ? expenseResult[0].total : 0;
+  const remaining = budget.amount - spent;
+  const percentage = (spent / budget.amount) * 100;
+  
+  return {
+    spent,
+    remaining,
+    percentage
+  };
+}
 
 // Get all budgets with their status
 exports.getAllBudgetsWithStatus = async (req, res) => {
