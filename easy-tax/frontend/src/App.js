@@ -28,6 +28,9 @@ import BudgetDetails from './pages/user/budgets/BudgetDetails';
 import BudgetRecommendations from './pages/user/budgets/BudgetRecommendations';
 import FinancialReports from './pages/user/reports/FinancialReports';
 
+// Tax Components
+import ManageTaxes from './pages/user/taxes/ManageTaxes';
+
 // Admin Components
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProfile from './pages/admin/Profile';
@@ -178,6 +181,16 @@ function App() {
               element={
                 <PrivateRoute>
                   <FinancialReports />
+                </PrivateRoute>
+              } 
+            />
+            
+            {/* Tax Routes */}
+            <Route 
+              path="/manage-taxes" 
+              element={
+                <PrivateRoute>
+                  <ManageTaxes />
                 </PrivateRoute>
               } 
             />
