@@ -460,19 +460,20 @@ const TaxCharts = ({ taxData }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={incomeVsTaxData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+                      margin={{ top: 20, right: 30, left: 60, bottom: 30 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" opacity={0.7} />
                       <XAxis dataKey="name" />
                       <YAxis 
                         tickFormatter={(value) => `$${value}`} 
-                        width={70}
+                        width={80}
                       >
                         <Label 
                           value="Amount ($)" 
                           angle={-90} 
                           position="insideLeft" 
-                          style={{ textAnchor: 'middle' }} 
+                          style={{ textAnchor: 'middle' }}
+                          offset={-40}
                         />
                       </YAxis>
                       <Tooltip content={customTooltip} />
@@ -504,8 +505,8 @@ const TaxCharts = ({ taxData }) => {
                       <YAxis 
                         dataKey="name" 
                         type="category" 
-                        width={150} 
-                        tickFormatter={(value) => value.length > 15 ? value.slice(0, 15) + '...' : value}
+                        width={180} 
+                        tickFormatter={(value) => value.length > 20 ? value.slice(0, 20) + '...' : value}
                       />
                       <Tooltip content={customTooltip} />
                       <Legend />
@@ -622,7 +623,7 @@ const TaxCharts = ({ taxData }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={rateVsAmountData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+                      margin={{ top: 20, right: 30, left: 60, bottom: 50 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" opacity={0.7} />
                       <XAxis 
@@ -635,12 +636,14 @@ const TaxCharts = ({ taxData }) => {
                       <YAxis 
                         yAxisId="left" 
                         tickFormatter={(value) => `$${value}`}
+                        width={80}
                       >
                         <Label 
                           value="Tax Amount ($)" 
                           angle={-90} 
                           position="insideLeft" 
-                          style={{ textAnchor: 'middle' }} 
+                          style={{ textAnchor: 'middle' }}
+                          offset={-40}
                         />
                       </YAxis>
                       <YAxis 
@@ -786,17 +789,18 @@ const TaxCharts = ({ taxData }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={incomeVsTaxData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 30 }}
+                      margin={{ top: 20, right: 30, left: 60, bottom: 30 }}
                       stackOffset="expand"
                     >
                       <CartesianGrid strokeDasharray="3 3" opacity={0.7} />
                       <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}>
+                      <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`} width={60}>
                         <Label 
                           value="Percentage" 
                           angle={-90} 
                           position="insideLeft" 
-                          style={{ textAnchor: 'middle' }} 
+                          style={{ textAnchor: 'middle' }}
+                          offset={-40}
                         />
                       </YAxis>
                       <Tooltip 
