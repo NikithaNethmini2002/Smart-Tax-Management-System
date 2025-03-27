@@ -26,7 +26,8 @@ import {
   BarChart as ChartIcon,
   PersonOutline as ProfileIcon,
   Lock as PasswordIcon,
-  Assessment as AssessmentIcon
+  Assessment as AssessmentIcon,
+  CalculateOutlined as TaxIcon
 } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
 import Chatbot from './chatbot/Chatbot';
@@ -82,6 +83,13 @@ const UserLayout = ({ children, title }) => {
             <AssessmentIcon />
           </ListItemIcon>
           <ListItemText primary="Financial Reports" />
+        </ListItem>
+        
+        <ListItem button component={RouterLink} to="/manage-taxes">
+          <ListItemIcon>
+            <TaxIcon />
+          </ListItemIcon>
+          <ListItemText primary="Manage Taxes" />
         </ListItem>
         
         <ListItem button component={RouterLink} to="/profile">
