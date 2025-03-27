@@ -19,11 +19,13 @@ import UserLayout from '../../../components/UserLayout';
 import {
   Add as AddIcon,
   Calculate as CalculateIcon,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  Email as EmailIcon
 } from '@mui/icons-material';
 import AddTax from './AddTax';
 import TaxCalculation from './TaxCalculation';
 import TaxCharts from './TaxCharts';
+import EmailReminders from './EmailReminders';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -144,6 +146,10 @@ const ManageTaxes = () => {
             taxData={taxData}
           />
         );
+      case 3:
+        return (
+          <EmailReminders taxData={taxData} />
+        );
       default:
         return <Box>Invalid tab</Box>;
     }
@@ -172,7 +178,7 @@ const ManageTaxes = () => {
             Manage Taxes
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Add, calculate, and visualize your tax information for better financial planning.
+            Add, calculate, visualize, and receive reminders about your tax information.
           </Typography>
 
           <Paper elevation={2} sx={{ borderRadius: 2, mt: 3 }}>
@@ -203,6 +209,12 @@ const ManageTaxes = () => {
               <Tab 
                 icon={<BarChartIcon />} 
                 label="Charts" 
+                iconPosition="start"
+                sx={{ textTransform: 'none' }}
+              />
+              <Tab 
+                icon={<EmailIcon />} 
+                label="Email" 
                 iconPosition="start"
                 sx={{ textTransform: 'none' }}
               />
