@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -21,6 +21,8 @@ import {
   Person as PersonIcon,
   ExitToApp as LogoutIcon,
   VpnKey as KeyIcon,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
   Receipt as TransactionIcon,
   AccountBalance as BudgetIcon,
   BarChart as ChartIcon,
@@ -28,6 +30,14 @@ import {
   Lock as PasswordIcon,
   Assessment as AssessmentIcon,
   CalculateOutlined as TaxIcon
+=======
+  AttachMoney,
+  AccountBalance
+>>>>>>> Stashed changes
+=======
+  AttachMoney,
+  AccountBalance
+>>>>>>> Stashed changes
 } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
 import Chatbot from './chatbot/Chatbot';
@@ -37,7 +47,7 @@ const drawerWidth = 240;
 const UserLayout = ({ children, title }) => {
   const { auth, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -51,7 +61,7 @@ const UserLayout = ({ children, title }) => {
   const drawer = (
     <div>
       <Toolbar>
-        <Typography variant="h6" noWrap>
+        <Typography variant="h6" noWrap component="div">
           Easy Tax
         </Typography>
       </Toolbar>
@@ -63,6 +73,8 @@ const UserLayout = ({ children, title }) => {
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </ListItem>
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
         
         <ListItem button component={RouterLink} to="/transactions">
           <ListItemIcon>
@@ -92,6 +104,25 @@ const UserLayout = ({ children, title }) => {
           <ListItemText primary="Manage Taxes" />
         </ListItem>
         
+=======
+=======
+>>>>>>> Stashed changes
+        <ListItem button component={RouterLink} to="/transactions">
+          <ListItemIcon>
+            <AttachMoney />
+          </ListItemIcon>
+          <ListItemText primary="Transactions" />
+        </ListItem>
+        <ListItem button component={RouterLink} to="/budgets">
+          <ListItemIcon>
+            <AccountBalance />
+          </ListItemIcon>
+          <ListItemText primary="Budgets" />
+        </ListItem>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
         <ListItem button component={RouterLink} to="/profile">
           <ListItemIcon>
             <ProfileIcon />
@@ -105,9 +136,6 @@ const UserLayout = ({ children, title }) => {
           </ListItemIcon>
           <ListItemText primary="Change Password" />
         </ListItem>
-      </List>
-      <Divider />
-      <List>
         <ListItem button onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon />
