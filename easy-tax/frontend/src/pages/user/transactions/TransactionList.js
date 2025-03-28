@@ -38,7 +38,9 @@ import {
   AccountBalance as AccountBalanceIcon,
   Download as DownloadIcon,
   ArrowUpward as ArrowUpwardIcon,
-  ArrowDownward as ArrowDownwardIcon
+  ArrowDownward as ArrowDownwardIcon,
+  AutoFixHigh as AutoIcon,
+  LockOutlined as LockIcon
 } from '@mui/icons-material';
 import UserLayout from '../../../components/UserLayout';
 import TransactionService from '../../../services/transaction.service';
@@ -171,7 +173,28 @@ const TransactionList = () => {
     }
   };
 
+  // Check if a transaction is an automatic tax expense (should be protected)
+  const isAutomaticTaxExpense = (transaction) => {
+    return (
+      transaction.category === 'Taxes' && 
+      transaction.type === 'expense' && 
+      transaction.tags && 
+      Array.isArray(transaction.tags) && 
+      (transaction.tags.includes('#automatic') || transaction.tags.includes('#tax'))
+    );
+  };
+
+  // Handle delete with protection for automatic tax expenses
   const handleDelete = async (id) => {
+    const transaction = transactions.find(t => t._id === id);
+
+    // Don't allow deletion of automatic tax expenses
+    if (isAutomaticTaxExpense(transaction)) {
+      setError('Automatic tax expense entries cannot be deleted.');
+      setOpenSnackbar(true);
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this transaction?')) {
       try {
         await TransactionService.deleteTransaction(id);
@@ -180,6 +203,7 @@ const TransactionList = () => {
         setOpenSnackbar(true);
       } catch (err) {
         setError(err.message || 'Failed to delete transaction');
+        setOpenSnackbar(true);
       }
     }
   };
@@ -627,9 +651,30 @@ const TransactionList = () => {
                 </TableHead>
                 <TableBody>
                   {displayedTransactions.map((transaction) => (
-                    <TableRow key={transaction._id}>
+                    <TableRow 
+                      key={transaction._id}
+                      sx={{
+                        backgroundColor: isAutomaticTaxExpense(transaction) 
+                          ? 'rgba(66, 133, 244, 0.08)' // Light blue background for automatic entries
+                          : 'inherit'
+                      }}
+                    >
                       <TableCell>{formatDate(transaction.date)}</TableCell>
-                      <TableCell>{transaction.category}</TableCell>
+                      <TableCell>
+                        {transaction.category}
+                        {isAutomaticTaxExpense(transaction) && (
+                          <Tooltip title="Automatic Tax Entry">
+                            <Chip
+                              icon={<AutoIcon fontSize="small" />}
+                              label="Auto"
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ ml: 1 }}
+                            />
+                          </Tooltip>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Chip 
                           label={transaction.type === 'income' ? 'Income' : 'Expense'} 
@@ -648,25 +693,43 @@ const TransactionList = () => {
                       <TableCell>{transaction.description}</TableCell>
                       <TableCell>{transaction.paymentMethod || '-'}</TableCell>
                       <TableCell>
-                        <Tooltip title="Edit">
-                          <IconButton 
-                            component={RouterLink} 
-                            to={`/transactions/${transaction._id}/edit`}
-                            size="small"
-                            color="primary"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton 
-                            onClick={() => handleDelete(transaction._id)}
-                            size="small"
-                            color="error"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
+                        {isAutomaticTaxExpense(transaction) ? (
+                          <>
+                            <Tooltip title="Automatic tax entries cannot be edited">
+                              <span>
+                                <IconButton 
+                                  size="small"
+                                  color="primary"
+                                  disabled={true}
+                                >
+                                  <LockIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </>
+                        ) : (
+                          <>
+                            <Tooltip title="Edit">
+                              <IconButton 
+                                component={RouterLink} 
+                                to={`/transactions/${transaction._id}/edit`}
+                                size="small"
+                                color="primary"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <IconButton 
+                                onClick={() => handleDelete(transaction._id)}
+                                size="small"
+                                color="error"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

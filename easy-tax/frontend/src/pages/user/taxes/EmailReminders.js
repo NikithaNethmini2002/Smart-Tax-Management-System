@@ -1085,10 +1085,6 @@ const EmailReminders = ({ taxData }) => {
             </Box>
             
             <Typography variant="body1" paragraph>
-              <strong>Please note:</strong> We've attached a detailed tax report to this email for your reference. You can view and download this report anytime from the Easy-Tax app.
-            </Typography>
-            
-            <Typography variant="body1" paragraph>
               Thank you for using Easy-Tax to manage your taxes.
             </Typography>
             
@@ -1096,28 +1092,6 @@ const EmailReminders = ({ taxData }) => {
               Best regards,<br />
               The Easy-Tax Team
             </Typography>
-          </Box>
-          
-          <Box sx={{ 
-            p: 3, 
-            bgcolor: '#f8f9fa', 
-            borderTop: '1px solid #eee',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <BarChartIcon color="primary" sx={{ mr: 1 }} />
-              <Typography variant="body2" color="text.secondary">
-                tax-report-{format(new Date(), 'yyyy-MM-dd')}.pdf
-              </Typography>
-            </Box>
-            <Chip 
-              label="PDF Attachment" 
-              color="primary" 
-              size="small" 
-              sx={{ borderRadius: 1 }}
-            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, bgcolor: '#f8f9fa' }}>

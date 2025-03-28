@@ -26,6 +26,8 @@ import AddTax from './AddTax';
 import TaxCalculation from './TaxCalculation';
 import TaxCharts from './TaxCharts';
 import EmailReminders from './EmailReminders';
+import TaxExpenseService from '../../../services/taxExpense.service';
+import TransactionService from '../../../services/transaction.service';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -61,6 +63,9 @@ const ManageTaxes = () => {
   const [editingTax, setEditingTax] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taxToDelete, setTaxToDelete] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [totalTaxAmount, setTotalTaxAmount] = useState(0);
+  const [updateInProgress, setUpdateInProgress] = useState(false);
 
   // Load tax data from localStorage on component mount
   useEffect(() => {
@@ -68,7 +73,105 @@ const ManageTaxes = () => {
     if (savedTaxes) {
       setTaxData(JSON.parse(savedTaxes));
     }
+    
+    // Fetch transactions for tax calculations
+    fetchTransactions();
   }, []);
+
+  // Calculate total tax whenever tax data or transactions change
+  useEffect(() => {
+    calculateTotalTax();
+  }, [taxData, transactions]);
+
+  // Update tax expense when total tax amount changes
+  useEffect(() => {
+    if (!updateInProgress) {
+      updateTaxExpense();
+    }
+  }, [totalTaxAmount]);
+
+  // Fetch transactions for tax calculations
+  const fetchTransactions = async () => {
+    try {
+      const transactionsData = await TransactionService.getAllTransactions();
+      // Only consider income transactions for tax calculations
+      const incomeTransactions = transactionsData.filter(tx => tx.type === 'income');
+      setTransactions(incomeTransactions);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    }
+  };
+
+  // Calculate total tax based on tax data and transactions
+  const calculateTotalTax = () => {
+    if (taxData.length === 0 || transactions.length === 0) {
+      setTotalTaxAmount(0);
+      return;
+    }
+
+    try {
+      // Get Salary taxes
+      const salaryItems = taxData
+        .filter(tax => tax.category.toLowerCase().includes('salary'))
+        .map(tax => {
+          // Find the specific transaction based on subCategory (description)
+          const specificTransaction = transactions.find(
+            tx => tx.category === tax.category && tx.description === tax.subCategory
+          );
+          
+          const incomeAmount = specificTransaction ? specificTransaction.amount : 0;
+          const taxAmount = (incomeAmount * tax.percentage) / 100;
+          
+          return {
+            ...tax,
+            incomeAmount,
+            taxAmount
+          };
+        });
+      
+      // Get Business taxes
+      const businessItems = taxData
+        .filter(tax => tax.category.toLowerCase().includes('business'))
+        .map(tax => {
+          // Find the specific transaction based on subCategory (description)
+          const specificTransaction = transactions.find(
+            tx => tx.category === tax.category && tx.description === tax.subCategory
+          );
+          
+          const incomeAmount = specificTransaction ? specificTransaction.amount : 0;
+          const taxAmount = (incomeAmount * tax.percentage) / 100;
+          
+          return {
+            ...tax,
+            incomeAmount,
+            taxAmount
+          };
+        });
+      
+      // Calculate total tax
+      const totalSalaryTax = salaryItems.reduce((sum, item) => sum + item.taxAmount, 0);
+      const totalBusinessTax = businessItems.reduce((sum, item) => sum + item.taxAmount, 0);
+      const calculatedTotalTax = totalSalaryTax + totalBusinessTax;
+      
+      // Update state with calculated tax amount
+      setTotalTaxAmount(calculatedTotalTax);
+    } catch (error) {
+      console.error('Error calculating total tax:', error);
+    }
+  };
+
+  // Update the tax expense transaction with the new total tax amount
+  // If totalTaxAmount is 0, this will remove any existing tax expense transaction
+  const updateTaxExpense = async () => {
+    try {
+      setUpdateInProgress(true);
+      await TaxExpenseService.updateCurrentMonthTaxExpense(totalTaxAmount);
+      setUpdateInProgress(false);
+    } catch (error) {
+      console.error('Error updating tax expense:', error);
+      setUpdateInProgress(false);
+    }
+  };
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -82,12 +185,26 @@ const ManageTaxes = () => {
     localStorage.setItem('userTaxes', JSON.stringify(updatedTaxes));
   };
 
-  const handleDeleteTax = () => {
+  const handleDeleteTax = async () => {
     if (!taxToDelete) return;
     
     const updatedTaxes = taxData.filter(tax => tax.id !== taxToDelete.id);
     setTaxData(updatedTaxes);
-    localStorage.setItem('taxData', JSON.stringify(updatedTaxes));
+    localStorage.setItem('userTaxes', JSON.stringify(updatedTaxes));
+    
+    // If no taxes remain, remove the tax expense transaction
+    if (updatedTaxes.length === 0) {
+      try {
+        await TaxExpenseService.removeTaxExpenseTransaction();
+        console.log('Tax expense transaction removed since all taxes were deleted');
+      } catch (error) {
+        console.error('Error removing tax expense transaction:', error);
+      }
+    } else {
+      // If taxes still remain, recalculate total tax (will trigger updateTaxExpense via useEffect)
+      calculateTotalTax();
+    }
+    
     setDeleteDialogOpen(false);
     setTaxToDelete(null);
   };

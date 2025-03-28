@@ -31,7 +31,8 @@ import {
   MenuItem,
   TextField,
   ToggleButtonGroup,
-  ToggleButton
+  ToggleButton,
+  Snackbar
 } from '@mui/material';
 import { 
   ArrowUpward, 
@@ -44,7 +45,8 @@ import {
   Delete as DeleteIcon,
   FilterAlt,
   CalendarMonth,
-  DateRange
+  DateRange,
+  CheckCircleOutlined
 } from '@mui/icons-material';
 import { 
   startOfMonth, 
@@ -60,6 +62,7 @@ import {
   getYear
 } from 'date-fns';
 import TransactionService from '../../../services/transaction.service';
+import TaxExpenseService from '../../../services/taxExpense.service';
 
 const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
   const [loading, setLoading] = useState(true);
@@ -70,6 +73,9 @@ const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
   const [totalTax, setTotalTax] = useState(0);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taxToDelete, setTaxToDelete] = useState(null);
+  const [expenseCreated, setExpenseCreated] = useState(false);
+  const [expenseSnackbarOpen, setExpenseSnackbarOpen] = useState(false);
+  const [expenseError, setExpenseError] = useState(null);
   
   // Filter states
   const [filterType, setFilterType] = useState('all'); // 'all', 'month', 'week'
@@ -78,23 +84,40 @@ const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
   const [dateRange, setDateRange] = useState({ start: null, end: null });
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const transactionsData = await TransactionService.getAllTransactions();
-        // Only consider income transactions
-        const incomeTransactions = transactionsData.filter(tx => tx.type === 'income');
-        setTransactions(incomeTransactions);
-        setFilteredTransactions(incomeTransactions); // Initially all transactions are shown
-      } catch (error) {
-        console.error('Error fetching transactions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTransactions();
+    checkForExistingTaxExpense(); // Check if expense already exists when component loads
   }, []);
+
+  // Check if a tax expense already exists for the current month
+  const checkForExistingTaxExpense = async () => {
+    try {
+      const today = new Date();
+      const exists = await TaxExpenseService.checkExistingTaxTransaction(today);
+      
+      if (exists) {
+        // Update state to show the indicator for existing expenses
+        setExpenseCreated(true);
+      }
+    } catch (error) {
+      console.error('Error checking for existing tax expenses:', error);
+    }
+  };
+
+  // Function to fetch transactions - extracted for reuse
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      const transactionsData = await TransactionService.getAllTransactions();
+      // Only consider income transactions for tax calculations
+      const incomeTransactions = transactionsData.filter(tx => tx.type === 'income');
+      setTransactions(incomeTransactions);
+      setFilteredTransactions(incomeTransactions); // Initially all transactions are shown
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Apply time-based filtering when filter type or dates change
   useEffect(() => {
@@ -184,13 +207,62 @@ const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
       // Calculate total tax
       const totalSalaryTax = salaryItems.reduce((sum, item) => sum + item.taxAmount, 0);
       const totalBusinessTax = businessItems.reduce((sum, item) => sum + item.taxAmount, 0);
-      setTotalTax(totalSalaryTax + totalBusinessTax);
+      const calculatedTotalTax = totalSalaryTax + totalBusinessTax;
+      setTotalTax(calculatedTotalTax);
+      
+      // Create automatic tax expense if needed and if tax amount is greater than 0
+      if (calculatedTotalTax > 0) {
+        createTaxExpenseIfNeeded(calculatedTotalTax);
+      }
     } else {
       setSalaryTaxes([]);
       setBusinessTaxes([]);
       setTotalTax(0);
     }
   }, [taxData, filteredTransactions]);
+
+  // Clean up any locks when component unmounts
+  useEffect(() => {
+    return () => {
+      // Reset any pending expense creation locks
+      TaxExpenseService.resetCreationLock();
+    };
+  }, []);
+
+  // Function to create a tax expense transaction if one doesn't already exist for the current month
+  const createTaxExpenseIfNeeded = async (taxAmount) => {
+    try {
+      // Only proceed if we haven't already created an expense in this session
+      if (expenseCreated) {
+        console.log('Expense already created in this session, skipping');
+        return;
+      }
+      
+      const today = new Date();
+      
+      // Use the improved service to create or update tax expense
+      const result = await TaxExpenseService.updateCurrentMonthTaxExpense(taxAmount);
+      
+      if (result) {
+        // Show success message
+        setExpenseCreated(true);
+        setExpenseSnackbarOpen(true);
+        setExpenseError(null);
+        
+        // Refresh transactions after a short delay
+        setTimeout(() => {
+          fetchTransactions();
+        }, 1000);
+      } else {
+        // If no expense was created (possibly zero amount), log it
+        console.log('No tax expense transaction was created or updated');
+      }
+    } catch (error) {
+      console.error('Error creating/updating automatic tax expense:', error);
+      setExpenseError('Failed to create/update automatic tax expense');
+      setExpenseSnackbarOpen(true);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return `$${amount.toFixed(2)}`;
@@ -224,7 +296,7 @@ const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
 
   const confirmDelete = () => {
     if (taxToDelete) {
-      onDeleteTax(taxToDelete.id);
+      onDeleteTax(taxToDelete);
       setDeleteDialogOpen(false);
       setTaxToDelete(null);
     }
@@ -339,6 +411,22 @@ const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Tax Expense Snackbar */}
+      <Snackbar
+        open={expenseSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setExpenseSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setExpenseSnackbarOpen(false)} 
+          severity={expenseError ? "error" : "success"}
+          sx={{ width: '100%' }}
+        >
+          {expenseError ? expenseError : "Tax expense transaction automatically created!"}
+        </Alert>
+      </Snackbar>
 
       {taxData.length === 0 ? (
         <Alert 
@@ -806,6 +894,17 @@ const TaxCalculation = ({ taxData, onDeleteTax, onEditTax }) => {
                         >
                           {formatCurrency(totalTax)}
                         </Typography>
+                        
+                        {/* Add indicator for automatic expense */}
+                        {expenseCreated && (
+                          <Chip 
+                            label="Expense Created" 
+                            color="success" 
+                            size="small" 
+                            sx={{ mt: 1 }}
+                            icon={<CheckCircleOutlined />}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   </Grid>
