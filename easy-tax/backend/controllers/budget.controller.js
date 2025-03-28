@@ -1,8 +1,6 @@
 const { validationResult } = require('express-validator');
 const Budget = require('../models/Budget');
 const Transaction = require('../models/Transaction');
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
 // Get all budgets for a user
 exports.getAllBudgets = async (req, res) => {
@@ -12,100 +10,6 @@ exports.getAllBudgets = async (req, res) => {
     res.json(budgets);
   } catch (error) {
     console.error('Error fetching budgets:', error);
-=======
-=======
->>>>>>> Stashed changes
-const Category = require('../models/Category');
-const mongoose = require('mongoose');
-
-// Get all budgets
-exports.getAllBudgets = async (req, res) => {
-  try {
-    const { isActive, period } = req.query;
-    
-    // Build filter
-    const filter = { user: req.user._id };
-    
-    if (isActive === 'true') {
-      filter.isActive = true;
-    } else if (isActive === 'false') {
-      filter.isActive = false;
-    }
-    
-    if (period) {
-      filter.period = period;
-    }
-    
-    const budgets = await Budget.find(filter)
-      .populate('category', 'name icon color')
-      .sort({ createdAt: -1 });
-    
-    // Calculate current spending for each budget
-    const budgetsWithSpending = await Promise.all(budgets.map(async (budget) => {
-      const budgetObj = budget.toObject();
-      
-      // Determine date range based on budget period
-      let startDate, endDate;
-      const now = new Date();
-      
-      if (budget.period === 'monthly') {
-        // Current month
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      } else if (budget.period === 'yearly') {
-        // Current year
-        startDate = new Date(now.getFullYear(), 0, 1);
-        endDate = new Date(now.getFullYear(), 11, 31);
-      } else {
-        // Custom period uses the budget's own dates
-        startDate = budget.startDate;
-        endDate = budget.endDate || now;
-      }
-      
-      // Filter for transactions
-      const filter = {
-        user: req.user._id,
-        type: 'expense',
-        date: { $gte: startDate, $lte: endDate }
-      };
-      
-      // Add category filter if this budget is for a specific category
-      if (budget.category) {
-        filter.category = budget.category._id;
-      }
-      
-      // Add tags filter if this budget is for specific tags
-      if (budget.tags && budget.tags.length > 0) {
-        filter.tags = { $in: budget.tags };
-      }
-      
-      // Calculate spending
-      const spending = await Transaction.aggregate([
-        { $match: filter },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]);
-      
-      budgetObj.currentSpending = spending.length > 0 ? spending[0].total : 0;
-      budgetObj.remainingAmount = budget.amount - budgetObj.currentSpending;
-      budgetObj.usagePercentage = (budgetObj.currentSpending / budget.amount) * 100;
-      
-      // Check if exceeding threshold
-      budgetObj.isExceedingThreshold = 
-        (budgetObj.currentSpending / budget.amount) >= budget.notificationThreshold;
-      
-      // Check if exceeding budget
-      budgetObj.isExceeded = budgetObj.currentSpending > budget.amount;
-      
-      return budgetObj;
-    }));
-    
-    res.json(budgetsWithSpending);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -113,29 +17,14 @@ exports.getAllBudgets = async (req, res) => {
 // Get budget by ID
 exports.getBudgetById = async (req, res) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     const budget = await Budget.findOne({ 
       _id: req.params.id, 
       user: req.user._id 
     });
-=======
-=======
->>>>>>> Stashed changes
-    const budget = await Budget.findOne({
-      _id: req.params.id,
-      user: req.user._id
-    }).populate('category', 'name icon color');
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     
     if (!budget) {
       return res.status(404).json({ message: 'Budget not found' });
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     res.json(budget);
   } catch (error) {
@@ -143,73 +32,11 @@ exports.getBudgetById = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Budget not found' });
     }
-=======
-=======
->>>>>>> Stashed changes
-    
-    // Calculate current spending
-    const now = new Date();
-    let startDate, endDate;
-    
-    if (budget.period === 'monthly') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    } else if (budget.period === 'yearly') {
-      startDate = new Date(now.getFullYear(), 0, 1);
-      endDate = new Date(now.getFullYear(), 11, 31);
-    } else {
-      startDate = budget.startDate;
-      endDate = budget.endDate || now;
-    }
-    
-    // Filter for transactions
-    const filter = {
-      user: req.user._id,
-      type: 'expense',
-      date: { $gte: startDate, $lte: endDate }
-    };
-    
-    // Add category filter if this budget is for a specific category
-    if (budget.category) {
-      filter.category = budget.category._id;
-    }
-    
-    // Add tags filter if this budget is for specific tags
-    if (budget.tags && budget.tags.length > 0) {
-      filter.tags = { $in: budget.tags };
-    }
-    
-    // Calculate spending
-    const spending = await Transaction.aggregate([
-      { $match: filter },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    
-    const budgetObj = budget.toObject();
-    budgetObj.currentSpending = spending.length > 0 ? spending[0].total : 0;
-    budgetObj.remainingAmount = budget.amount - budgetObj.currentSpending;
-    budgetObj.usagePercentage = (budgetObj.currentSpending / budget.amount) * 100;
-    
-    res.json(budgetObj);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Create a new budget
-=======
-// Create budget
->>>>>>> Stashed changes
-=======
-// Create budget
->>>>>>> Stashed changes
 exports.createBudget = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -217,8 +44,6 @@ exports.createBudget = async (req, res) => {
   }
 
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     const {
       name,
       amount,
@@ -242,56 +67,11 @@ exports.createBudget = async (req, res) => {
       });
     }
 
-=======
-=======
->>>>>>> Stashed changes
-    const { name, amount, period, startDate, endDate, category, tags, notificationThreshold } = req.body;
-    
-    // Validate amount is positive
-    if (amount <= 0) {
-      return res.status(400).json({ message: 'Budget amount must be positive' });
-    }
-    
-    // Check if category exists if provided
-    if (category) {
-      const categoryExists = await Category.findById(category);
-      if (!categoryExists) {
-        return res.status(400).json({ message: 'Category not found' });
-      }
-      
-      // Ensure category is for expenses
-      if (categoryExists.type !== 'expense' && categoryExists.type !== 'both') {
-        return res.status(400).json({ message: 'Category must be applicable for expenses' });
-      }
-    }
-    
-    // Process tags
-    let processedTags = [];
-    if (tags && tags.length > 0) {
-      if (Array.isArray(tags)) {
-        processedTags = tags;
-      } else {
-        processedTags = tags.split(',').map(tag => tag.trim());
-      }
-      
-      // Ensure tags start with # if they don't already
-      processedTags = processedTags.map(tag => 
-        tag.startsWith('#') ? tag : `#${tag}`
-      );
-    }
-    
-    // Create budget
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     const budget = new Budget({
       user: req.user._id,
       name,
       amount,
       period: period || 'monthly',
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
       category,
       startDate: startDate || Date.now(),
       notificationThreshold: notificationThreshold || 80
@@ -305,42 +85,11 @@ exports.createBudget = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: 'You already have a budget for this category and period' });
     }
-=======
-=======
->>>>>>> Stashed changes
-      startDate: new Date(startDate || Date.now()),
-      endDate: endDate ? new Date(endDate) : undefined,
-      category: category || undefined,
-      tags: processedTags,
-      notificationThreshold: notificationThreshold || 0.8
-    });
-    
-    await budget.save();
-    
-    // Return with populated category
-    const newBudget = await Budget.findById(budget._id)
-      .populate('category', 'name icon color');
-    
-    res.status(201).json(newBudget);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Update a budget
-=======
-// Update budget
->>>>>>> Stashed changes
-=======
-// Update budget
->>>>>>> Stashed changes
 exports.updateBudget = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -348,8 +97,6 @@ exports.updateBudget = async (req, res) => {
   }
 
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     const {
       name,
       amount,
@@ -409,97 +156,10 @@ exports.updateBudget = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: 'You already have a budget for this category and period' });
     }
-=======
-=======
->>>>>>> Stashed changes
-    const { name, amount, period, startDate, endDate, category, tags, notificationThreshold, isActive } = req.body;
-    
-    // Find budget
-    const budget = await Budget.findOne({ 
-      _id: req.params.id,
-      user: req.user._id 
-    });
-    
-    if (!budget) {
-      return res.status(404).json({ message: 'Budget not found' });
-    }
-    
-    // Validate amount is positive if provided
-    if (amount !== undefined && amount <= 0) {
-      return res.status(400).json({ message: 'Budget amount must be positive' });
-    }
-    
-    // Check if category exists if provided
-    if (category) {
-      const categoryExists = await Category.findById(category);
-      if (!categoryExists) {
-        return res.status(400).json({ message: 'Category not found' });
-      }
-      
-      // Ensure category is for expenses
-      if (categoryExists.type !== 'expense' && categoryExists.type !== 'both') {
-        return res.status(400).json({ message: 'Category must be applicable for expenses' });
-      }
-    }
-    
-    // Process tags if provided
-    if (tags !== undefined) {
-      const processedTags = Array.isArray(tags) ? 
-        tags : 
-        tags.split(',').map(tag => tag.trim());
-      
-      // Ensure tags start with # if they don't already
-      budget.tags = processedTags.map(tag => 
-        tag.startsWith('#') ? tag : `#${tag}`
-      );
-    }
-    
-    // Update fields if provided
-    if (name !== undefined) budget.name = name;
-    if (amount !== undefined) budget.amount = amount;
-    if (period !== undefined) budget.period = period;
-    if (startDate !== undefined) budget.startDate = new Date(startDate);
-    
-    // Update endDate based on period
-    if (period === 'custom' && endDate) {
-      budget.endDate = new Date(endDate);
-    } else if (period !== 'custom') {
-      budget.endDate = undefined; // Remove endDate for non-custom periods
-    } else if (endDate !== undefined) {
-      budget.endDate = new Date(endDate);
-    }
-    
-    if (category !== undefined) {
-      budget.category = category || undefined; // Allow removing category (null/empty becomes undefined)
-    }
-    
-    if (notificationThreshold !== undefined) {
-      budget.notificationThreshold = notificationThreshold;
-    }
-    
-    if (isActive !== undefined) {
-      budget.isActive = isActive;
-    }
-    
-    await budget.save();
-    
-    // Return with populated category
-    const updatedBudget = await Budget.findById(budget._id)
-      .populate('category', 'name icon color');
-    
-    res.json(updatedBudget);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Delete a budget
 exports.deleteBudget = async (req, res) => {
   try {
@@ -533,27 +193,11 @@ exports.getBudgetStatus = async (req, res) => {
     
     // Find the budget
     const budget = await Budget.findOne({ _id: budgetId, user: userId });
-=======
-=======
->>>>>>> Stashed changes
-// Delete budget
-exports.deleteBudget = async (req, res) => {
-  try {
-    const budget = await Budget.findOne({ 
-      _id: req.params.id,
-      user: req.user._id
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     
     if (!budget) {
       return res.status(404).json({ message: 'Budget not found' });
     }
     
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // Calculate the budget status
     const status = await calculateBudgetStatus(budget);
     
@@ -566,23 +210,10 @@ exports.deleteBudget = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting budget status:', error);
-=======
-=======
->>>>>>> Stashed changes
-    await budget.deleteOne();
-    res.json({ message: 'Budget removed' });
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Helper function to calculate budget status
 async function calculateBudgetStatus(budget) {
   // Get date range for the budget period
@@ -751,115 +382,11 @@ exports.getBudgetRecommendations = async (req, res) => {
               month: `${month._id.year}-${month._id.month}`,
               amount: month.total
             }))
-=======
-=======
->>>>>>> Stashed changes
-// Get budget recommendations
-exports.getBudgetRecommendations = async (req, res) => {
-  try {
-    // Get the last 3 months of data
-    const now = new Date();
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    
-    // Get spending by category
-    const categorySpending = await Transaction.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user._id),
-          type: 'expense',
-          date: { $gte: threeMonthsAgo, $lte: now }
-        }
-      },
-      {
-        $group: {
-          _id: '$category',
-          totalSpent: { $sum: '$amount' },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: 'categories',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'categoryInfo'
-        }
-      },
-      {
-        $unwind: '$categoryInfo'
-      },
-      {
-        $sort: { totalSpent: -1 }
-      }
-    ]);
-    
-    // Get existing budgets
-    const existingBudgets = await Budget.find({ 
-      user: req.user._id,
-      isActive: true
-    }).populate('category', 'name');
-    
-    // Calculate average monthly spend per category
-    const monthlyAverage = categorySpending.map(cat => ({
-      categoryId: cat._id,
-      categoryName: cat.categoryInfo.name,
-      averageMonthly: +(cat.totalSpent / 3).toFixed(2),
-      transactionCount: cat.count
-    }));
-    
-    // Prepare recommendations
-    const recommendations = [];
-    
-    for (const category of monthlyAverage) {
-      // Check if there's already a budget for this category
-      const existingBudget = existingBudgets.find(b => 
-        b.category && b.category._id.toString() === category.categoryId.toString()
-      );
-      
-      if (existingBudget) {
-        // If budget exists but spending is consistently higher
-        if (category.averageMonthly > existingBudget.amount * 1.2) {
-          recommendations.push({
-            type: 'increase',
-            categoryId: category.categoryId,
-            categoryName: category.categoryName,
-            currentBudget: existingBudget.amount,
-            suggestedBudget: Math.ceil(category.averageMonthly * 1.1), // 10% buffer
-            reason: `Your average monthly ${category.categoryName} spending (${category.averageMonthly.toFixed(2)}) exceeds your budget by more than 20%`
-          });
-        }
-        // If budget is much higher than actual spending
-        else if (category.averageMonthly < existingBudget.amount * 0.7) {
-          recommendations.push({
-            type: 'decrease',
-            categoryId: category.categoryId,
-            categoryName: category.categoryName,
-            currentBudget: existingBudget.amount,
-            suggestedBudget: Math.ceil(category.averageMonthly * 1.2), // 20% buffer
-            reason: `Your budget for ${category.categoryName} may be too high. You typically spend only ${category.averageMonthly.toFixed(2)}`
-          });
-        }
-      } else {
-        // Suggest new budget for categories with significant spending
-        if (category.averageMonthly > 50) { // Threshold to avoid small amounts
-          recommendations.push({
-            type: 'new',
-            categoryId: category.categoryId,
-            categoryName: category.categoryName,
-            suggestedBudget: Math.ceil(category.averageMonthly * 1.1), // 10% buffer
-            reason: `Based on your spending patterns, we recommend creating a ${category.categoryName} budget of ${Math.ceil(category.averageMonthly * 1.1)}`
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
           });
         }
       }
     }
     
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // Also look for categories with significant spending but no budget
     const categoriesWithoutBudget = await Transaction.aggregate([
       { 
@@ -988,20 +515,3 @@ async function getExpenseTrendData(userId, budget, startDate, endDate) {
   
   return expenseTrend;
 } 
-=======
-=======
->>>>>>> Stashed changes
-    res.json({
-      recommendations,
-      monthlyAverages: monthlyAverage.slice(0, 10) // Top 10 categories
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-<<<<<<< Updated upstream
-}; 
->>>>>>> Stashed changes
-=======
-}; 
->>>>>>> Stashed changes

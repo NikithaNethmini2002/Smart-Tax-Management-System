@@ -2,9 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { useMediaQuery } from '@mui/material';
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 // Auth Components
 import Login from './pages/Login';
@@ -16,9 +13,6 @@ import AdminRegister from './pages/AdminRegister';
 import UserDashboard from './pages/user/Dashboard';
 import UserProfile from './pages/user/Profile';
 import ChangePassword from './pages/user/ChangePassword';
-import Transactions from './pages/user/Transactions';
-import Budgets from './pages/user/Budgets';
-<<<<<<< Updated upstream
 
 // Transaction Components
 import TransactionList from './pages/user/transactions/TransactionList';
@@ -36,8 +30,6 @@ import FinancialReports from './pages/user/reports/FinancialReports';
 
 // Tax Components
 import ManageTaxes from './pages/user/taxes/ManageTaxes';
-=======
->>>>>>> Stashed changes
 
 // Admin Components
 import AdminDashboard from './pages/admin/Dashboard';
@@ -51,30 +43,29 @@ import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 
-function App() {
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-  
-  const theme = React.useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: prefersDarkMode ? 'dark' : 'light',
-          primary: {
-            main: '#1976d2',
-          },
-          secondary: {
-            main: '#f50057',
-          },
-        },
-      }),
-    [prefersDarkMode],
-  );
+// Create theme
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+    background: {
+      default: '#f5f5f5',
+    },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontSize: 14,
+  },
+});
 
+function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
       <AuthProvider>
         <Router>
           <Routes>
@@ -252,116 +243,6 @@ function App() {
           </Routes>
         </Router>
       </AuthProvider>
-=======
-=======
->>>>>>> Stashed changes
-      <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <AuthProvider>
-          <Router>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/register" element={<AdminRegister />} />
-              
-              {/* User Protected Routes */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <PrivateRoute>
-                    <UserDashboard />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/profile" 
-                element={
-                  <PrivateRoute>
-                    <UserProfile />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/change-password" 
-                element={
-                  <PrivateRoute>
-                    <ChangePassword />
-                  </PrivateRoute>
-                } 
-              />
-              
-              {/* Financial Management Routes */}
-              <Route 
-                path="/transactions" 
-                element={
-                  <PrivateRoute>
-                    <Transactions />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/budgets" 
-                element={
-                  <PrivateRoute>
-                    <Budgets />
-                  </PrivateRoute>
-                } 
-              />
-              
-              {/* Admin Protected Routes */}
-              <Route 
-                path="/admin/dashboard" 
-                element={
-                  <AdminRoute>
-                    <AdminDashboard />
-                  </AdminRoute>
-                } 
-              />
-              <Route 
-                path="/admin/profile" 
-                element={
-                  <AdminRoute>
-                    <AdminProfile />
-                  </AdminRoute>
-                } 
-              />
-              <Route 
-                path="/admin/users" 
-                element={
-                  <AdminRoute>
-                    <UserManagement />
-                  </AdminRoute>
-                } 
-              />
-              <Route 
-                path="/admin/admins" 
-                element={
-                  <AdminRoute>
-                    <AdminManagement />
-                  </AdminRoute>
-                } 
-              />
-              <Route 
-                path="/admin/update-password" 
-                element={
-                  <AdminRoute>
-                    <AdminUpdatePassword />
-                  </AdminRoute>
-                } 
-              />
-              
-              {/* Default Routes */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Router>
-        </AuthProvider>
-      </LocalizationProvider>
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     </ThemeProvider>
   );
 }

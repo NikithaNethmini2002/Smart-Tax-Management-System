@@ -9,18 +9,10 @@ const morgan = require('morgan');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 const transactionRoutes = require('./routes/transaction.routes');
 const budgetRoutes = require('./routes/budget.routes');
 const chatbotRoutes = require('./routes/chatbot.routes');
 const emailRoutes = require('./routes/email.routes');
-=======
-const financeRoutes = require('./routes/finance.routes');
->>>>>>> Stashed changes
-=======
-const financeRoutes = require('./routes/finance.routes');
->>>>>>> Stashed changes
 
 // Configuration
 dotenv.config();
@@ -54,18 +46,10 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/email', emailRoutes);
-=======
-app.use('/api/finance', financeRoutes);
->>>>>>> Stashed changes
-=======
-app.use('/api/finance', financeRoutes);
->>>>>>> Stashed changes
 
 // Add this temporary route for debugging (REMOVE IN PRODUCTION)
 app.get('/api/debug/user/:email', async (req, res) => {

@@ -1,8 +1,6 @@
 const { validationResult } = require('express-validator');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -15,84 +13,6 @@ exports.getAllTransactions = async (req, res) => {
     res.json(transactions);
   } catch (error) {
     console.error('Error fetching transactions:', error);
-=======
-=======
->>>>>>> Stashed changes
-const Category = require('../models/Category');
-const mongoose = require('mongoose');
-
-// Get all transactions for user
-exports.getAllTransactions = async (req, res) => {
-  try {
-    const { startDate, endDate, type, category, tags, minAmount, maxAmount, search } = req.query;
-    
-    // Build filter object
-    const filter = { user: req.user._id };
-    
-    // Date filter
-    if (startDate || endDate) {
-      filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
-    }
-    
-    // Type filter (income/expense)
-    if (type && ['income', 'expense'].includes(type)) {
-      filter.type = type;
-    }
-    
-    // Category filter
-    if (category) {
-      filter.category = mongoose.Types.ObjectId(category);
-    }
-    
-    // Tags filter
-    if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      filter.tags = { $in: tagArray };
-    }
-    
-    // Amount range filter
-    if (minAmount || maxAmount) {
-      filter.amount = {};
-      if (minAmount) filter.amount.$gte = parseFloat(minAmount);
-      if (maxAmount) filter.amount.$lte = parseFloat(maxAmount);
-    }
-    
-    // Search by description
-    if (search) {
-      filter.description = { $regex: search, $options: 'i' };
-    }
-
-    // Get transactions with pagination
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
-    
-    const transactions = await Transaction.find(filter)
-      .populate('category', 'name icon color')
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(limit);
-    
-    // Get total count for pagination
-    const total = await Transaction.countDocuments(filter);
-    
-    res.json({
-      transactions,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -100,29 +20,14 @@ exports.getAllTransactions = async (req, res) => {
 // Get transaction by ID
 exports.getTransactionById = async (req, res) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     const transaction = await Transaction.findOne({ 
       _id: req.params.id, 
       user: req.user._id 
     });
-=======
-=======
->>>>>>> Stashed changes
-    const transaction = await Transaction.findOne({
-      _id: req.params.id,
-      user: req.user._id
-    }).populate('category', 'name icon color');
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
     res.json(transaction);
   } catch (error) {
@@ -130,30 +35,11 @@ exports.getTransactionById = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Transaction not found' });
     }
-=======
-=======
->>>>>>> Stashed changes
-    
-    res.json(transaction);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Create a new transaction
-=======
-// Create transaction
->>>>>>> Stashed changes
-=======
-// Create transaction
->>>>>>> Stashed changes
 exports.createTransaction = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -161,8 +47,6 @@ exports.createTransaction = async (req, res) => {
   }
 
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     const {
       type,
       amount,
@@ -201,73 +85,11 @@ exports.createTransaction = async (req, res) => {
     res.status(201).json(transaction);
   } catch (error) {
     console.error('Error creating transaction:', error);
-=======
-=======
->>>>>>> Stashed changes
-    const { amount, type, category, description, date, tags, paymentMethod, attachments } = req.body;
-    
-    // Validate amount is positive
-    if (amount <= 0) {
-      return res.status(400).json({ message: 'Amount must be positive' });
-    }
-    
-    // Check if category exists
-    const categoryExists = await Category.findById(category);
-    if (!categoryExists) {
-      return res.status(400).json({ message: 'Category not found' });
-    }
-    
-    // Validate category type matches transaction type
-    if (categoryExists.type !== 'both' && categoryExists.type !== type) {
-      return res.status(400).json({ 
-        message: `Category ${categoryExists.name} cannot be used for ${type} transactions`
-      });
-    }
-    
-    // Create new transaction
-    const transaction = new Transaction({
-      user: req.user._id,
-      amount,
-      type,
-      category,
-      description,
-      date: date ? new Date(date) : new Date(),
-      tags: tags ? tags.split(',').map(tag => tag.trim().startsWith('#') ? tag.trim() : `#${tag.trim()}`) : [],
-      paymentMethod,
-      attachments
-    });
-    
-    await transaction.save();
-    
-    // Check budget limits if it's an expense
-    if (type === 'expense') {
-      await checkBudgetLimits(req.user._id, category, transaction.tags);
-    }
-    
-    // Return the transaction with populated category
-    const populatedTransaction = await Transaction.findById(transaction._id)
-      .populate('category', 'name icon color');
-    
-    res.status(201).json(populatedTransaction);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Update a transaction
-=======
-// Update transaction
->>>>>>> Stashed changes
-=======
-// Update transaction
->>>>>>> Stashed changes
 exports.updateTransaction = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -275,8 +97,6 @@ exports.updateTransaction = async (req, res) => {
   }
 
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     const {
       type,
       amount,
@@ -334,104 +154,20 @@ exports.updateTransaction = async (req, res) => {
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ message: 'Transaction not found' });
     }
-=======
-=======
->>>>>>> Stashed changes
-    const { amount, type, category, description, date, tags, paymentMethod, attachments } = req.body;
-    
-    // Find transaction by ID and ensure it belongs to user
-    let transaction = await Transaction.findOne({ 
-      _id: req.params.id,
-      user: req.user._id
-    });
-    
-    if (!transaction) {
-      return res.status(404).json({ message: 'Transaction not found' });
-    }
-    
-    // Validate amount is positive
-    if (amount !== undefined && amount <= 0) {
-      return res.status(400).json({ message: 'Amount must be positive' });
-    }
-    
-    // Check if category exists
-    if (category) {
-      const categoryExists = await Category.findById(category);
-      if (!categoryExists) {
-        return res.status(400).json({ message: 'Category not found' });
-      }
-      
-      // Validate category type matches transaction type
-      if (categoryExists.type !== 'both' && categoryExists.type !== (type || transaction.type)) {
-        return res.status(400).json({
-          message: `Category ${categoryExists.name} cannot be used for ${type || transaction.type} transactions`
-        });
-      }
-    }
-    
-    // Update fields
-    if (amount !== undefined) transaction.amount = amount;
-    if (type) transaction.type = type;
-    if (category) transaction.category = category;
-    if (description !== undefined) transaction.description = description;
-    if (date) transaction.date = new Date(date);
-    if (tags !== undefined) {
-      transaction.tags = tags ? tags.split(',').map(tag => tag.trim().startsWith('#') ? tag.trim() : `#${tag.trim()}`) : [];
-    }
-    if (paymentMethod !== undefined) transaction.paymentMethod = paymentMethod;
-    if (attachments) transaction.attachments = attachments;
-    
-    await transaction.save();
-    
-    // Check budget limits if it's an expense
-    if (transaction.type === 'expense') {
-      await checkBudgetLimits(req.user._id, transaction.category, transaction.tags);
-    }
-    
-    // Return the updated transaction with populated category
-    const updatedTransaction = await Transaction.findById(transaction._id)
-      .populate('category', 'name icon color');
-    
-    res.json(updatedTransaction);
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Delete a transaction
 exports.deleteTransaction = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
     
     // Check if transaction exists
-=======
-=======
->>>>>>> Stashed changes
-// Delete transaction
-exports.deleteTransaction = async (req, res) => {
-  try {
-    const transaction = await Transaction.findOne({ 
-      _id: req.params.id,
-      user: req.user._id
-    });
-    
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
     
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // Verify that the transaction belongs to the current user
     if (transaction.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You do not have permission to delete this transaction' });
@@ -498,23 +234,10 @@ exports.filterTransactions = async (req, res) => {
     res.json(transactions);
   } catch (error) {
     console.error('Error filtering transactions:', error);
-=======
-=======
->>>>>>> Stashed changes
-    await transaction.deleteOne();
-    res.json({ message: 'Transaction removed' });
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Get transaction summary (for dashboard)
 exports.getTransactionSummary = async (req, res) => {
   try {
@@ -534,45 +257,10 @@ exports.getTransactionSummary = async (req, res) => {
           user: userObjectId,
           type: 'income',
           date: { $gte: startDate, $lte: endDate }
-=======
-=======
->>>>>>> Stashed changes
-// Get transaction summary
-exports.getTransactionSummary = async (req, res) => {
-  try {
-    const { startDate, endDate, period } = req.query;
-    
-    // Set default date range to current month if not provided
-    const currentDate = new Date();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
-    const start = startDate ? new Date(startDate) : firstDayOfMonth;
-    const end = endDate ? new Date(endDate) : lastDayOfMonth;
-    
-    // Group by period (day, week, month)
-    let groupBy = { $dateToString: { format: '%Y-%m-%d', date: '$date' } };
-    if (period === 'week') {
-      groupBy = { $dateToString: { format: '%Y-%U', date: '$date' } }; // %U is week number
-    } else if (period === 'month') {
-      groupBy = { $dateToString: { format: '%Y-%m', date: '$date' } };
-    }
-    
-    const summary = await Transaction.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user._id),
-          date: { $gte: start, $lte: end }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
       },
       {
         $group: {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
           _id: null,
           total: { $sum: '$amount' }
         }
@@ -586,25 +274,10 @@ exports.getTransactionSummary = async (req, res) => {
           user: userObjectId,
           type: 'expense',
           date: { $gte: startDate, $lte: endDate }
-=======
-=======
->>>>>>> Stashed changes
-          _id: {
-            period: groupBy,
-            type: '$type'
-          },
-          total: { $sum: '$amount' },
-          count: { $sum: 1 }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
       },
       {
         $group: {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
           _id: null,
           total: { $sum: '$amount' }
         }
@@ -618,40 +291,10 @@ exports.getTransactionSummary = async (req, res) => {
           user: userObjectId,
           type: 'expense',
           date: { $gte: startDate, $lte: endDate }
-=======
-=======
->>>>>>> Stashed changes
-          _id: '$_id.period',
-          data: {
-            $push: {
-              type: '$_id.type',
-              total: '$total',
-              count: '$count'
-            }
-          }
-        }
-      },
-      {
-        $sort: { _id: 1 }
-      }
-    ]);
-    
-    // Also get category breakdown
-    const categoryBreakdown = await Transaction.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user._id),
-          date: { $gte: start, $lte: end }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
       },
       {
         $group: {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
           _id: '$category',
           amount: { $sum: '$amount' }
         }
@@ -661,67 +304,10 @@ exports.getTransactionSummary = async (req, res) => {
           _id: 0,
           category: '$_id',
           amount: 1
-=======
-=======
->>>>>>> Stashed changes
-          _id: {
-            category: '$category',
-            type: '$type'
-          },
-          total: { $sum: '$amount' },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: 'categories',
-          localField: '_id.category',
-          foreignField: '_id',
-          as: 'categoryInfo'
-        }
-      },
-      {
-        $unwind: '$categoryInfo'
-      },
-      {
-        $project: {
-          _id: 0,
-          category: '$categoryInfo.name',
-          type: '$_id.type',
-          total: 1,
-          count: 1,
-          icon: '$categoryInfo.icon',
-          color: '$categoryInfo.color'
-        }
-      },
-      {
-        $sort: { total: -1 }
-      }
-    ]);
-    
-    // Get overall totals
-    const totals = await Transaction.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user._id),
-          date: { $gte: start, $lte: end }
-        }
-      },
-      {
-        $group: {
-          _id: '$type',
-          total: { $sum: '$amount' },
-          count: { $sum: 1 }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
       }
     ]);
     
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // Format the category breakdown into an object
     const categoryBreakdownObj = {};
     categoryBreakdown.forEach(item => {
@@ -739,51 +325,10 @@ exports.getTransactionSummary = async (req, res) => {
     res.json(summary);
   } catch (error) {
     console.error('Error getting transaction summary:', error);
-=======
-=======
->>>>>>> Stashed changes
-    // Format the overall totals
-    const formattedTotals = {
-      income: 0,
-      expense: 0,
-      balance: 0,
-      incomeCount: 0,
-      expenseCount: 0
-    };
-    
-    totals.forEach(item => {
-      if (item._id === 'income') {
-        formattedTotals.income = item.total;
-        formattedTotals.incomeCount = item.count;
-      } else if (item._id === 'expense') {
-        formattedTotals.expense = item.total;
-        formattedTotals.expenseCount = item.count;
-      }
-    });
-    
-    formattedTotals.balance = formattedTotals.income - formattedTotals.expense;
-    
-    res.json({
-      summary,
-      categoryBreakdown,
-      totals: formattedTotals,
-      dateRange: {
-        start,
-        end
-      }
-    });
-  } catch (error) {
-    console.error(error);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // Helper function to get date range based on period
 function getDateRangeForPeriod(period) {
   const now = new Date();
@@ -1881,115 +1426,3 @@ exports.createTestTransaction = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 }; 
-=======
-=======
->>>>>>> Stashed changes
-// Get common tags used by the user
-exports.getUserTags = async (req, res) => {
-  try {
-    const tags = await Transaction.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user._id),
-          tags: { $exists: true, $ne: [] }
-        }
-      },
-      {
-        $unwind: '$tags'
-      },
-      {
-        $group: {
-          _id: '$tags',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      },
-      {
-        $limit: 30
-      }
-    ]);
-    
-    res.json(tags.map(tag => ({ tag: tag._id, count: tag.count })));
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Helper function to check budget limits
-async function checkBudgetLimits(userId, categoryId, tags) {
-  try {
-    const currentDate = new Date();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
-    // Get active budgets for the user that match the category or tags
-    const budgets = await Budget.find({
-      user: userId,
-      isActive: true,
-      $or: [
-        { category: categoryId },
-        { category: { $exists: false } }, // Overall budget
-        { tags: { $in: tags } }
-      ],
-      startDate: { $lte: currentDate },
-      $or: [
-        { endDate: { $gte: currentDate } },
-        { endDate: { $exists: false } },
-        { period: 'monthly' }
-      ]
-    });
-    
-    // For each budget, calculate current usage
-    for (const budget of budgets) {
-      let filter = {
-        user: userId,
-        type: 'expense',
-        date: {
-          $gte: budget.period === 'monthly' ? firstDayOfMonth : budget.startDate,
-          $lte: budget.period === 'monthly' ? lastDayOfMonth : (budget.endDate || currentDate)
-        }
-      };
-      
-      // Add category filter if this budget is for a specific category
-      if (budget.category) {
-        filter.category = budget.category;
-      }
-      
-      // Add tags filter if this budget is for specific tags
-      if (budget.tags && budget.tags.length > 0) {
-        filter.tags = { $in: budget.tags };
-      }
-      
-      // Calculate total expenses for this budget
-      const expenseTotal = await Transaction.aggregate([
-        { $match: filter },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]);
-      
-      const spent = expenseTotal.length > 0 ? expenseTotal[0].total : 0;
-      const budgetLimit = budget.amount;
-      const usageRatio = spent / budgetLimit;
-      
-      // Update budget with current usage
-      budget.currentSpending = spent;
-      budget.usageRatio = usageRatio;
-      await budget.save();
-      
-      // TODO: If you have a notification system, you could trigger budget alerts here
-      // For now, we'll just update the budget with usage data
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error checking budget limits:', error);
-    return false;
-  }
-<<<<<<< Updated upstream
-} 
->>>>>>> Stashed changes
-=======
-} 
->>>>>>> Stashed changes
